@@ -1,95 +1,86 @@
 import type { BetType } from 'rgs-requests';
 
-import type { SymbolName, RawSymbol, GameType, Position } from './types';
+import type {
+	HeroId,
+	FodderSpriteId,
+	BigEnemyId,
+	BossId,
+	RoundResult,
+	AmbushReason,
+} from './types';
 
-// book events shared with scatter game
-type BookEventReveal = {
+type BookEventRoundInit = {
 	index: number;
-	type: 'reveal';
-	board: RawSymbol[][];
-	paddingPositions: number[];
-	anticipation: number[];
-	gameType: GameType;
+	type: 'roundInit';
+	heroId: HeroId;
 };
 
-type BookEventSetTotalWin = {
+type BookEventFodderWave = {
 	index: number;
-	type: 'setTotalWin';
-	amount: number;
+	type: 'fodderWave';
+	count: number;
+	killValueEach: number;
+	totalMultiplierGain: number;
+	enemyTypes: FodderSpriteId[];
+	largeFractionPct: number;
 };
 
-type BookEventFinalWin = {
+type BookEventBigEnemyKill = {
 	index: number;
-	type: 'finalWin';
-	amount: number;
+	type: 'bigEnemyKill';
+	enemyId: BigEnemyId;
+	multiplierGain: number;
 };
 
-type BookEventFreeSpinTrigger = {
+type BookEventRetaliation = {
 	index: number;
-	type: 'freeSpinTrigger';
-	totalFs: number;
-	positions: Position[];
+	type: 'retaliation';
+	multiplierBefore: number;
+	multiplierAfter: number;
 };
 
-type BookEventUpdateFreeSpin = {
+type BookEventSpellAttack = {
 	index: number;
-	type: 'updateFreeSpin';
-	amount: number;
-	total: number;
+	type: 'spellAttack';
+	sourceSpriteId: FodderSpriteId;
+	heartLost: 1;
 };
 
-type BookEventSetWin = {
+type BookEventBossEncounter = {
 	index: number;
-	type: 'setWin';
-	amount: number;
-	winLevel: number;
+	type: 'bossEncounter';
+	bossId: BossId;
 };
 
-type BookEventFreeSpinEnd = {
+type BookEventBossKill = {
 	index: number;
-	type: 'freeSpinEnd';
-	amount: number;
-	winLevel: number;
+	type: 'bossKill';
+	multiplierGain: number;
 };
 
-type BookEventWinInfo = {
+type BookEventAmbushDeath = {
 	index: number;
-	type: 'winInfo';
-	totalWin: number;
-	wins: {
-		symbol: SymbolName;
-		kind: number;
-		win: number;
-		positions: Position[];
-		meta: {
-			lineIndex: number;
-			multiplier: number;
-			winWithoutMult: number;
-			globalMult: number;
-			lineMultiplier: number;
-		};
-	}[];
+	type: 'ambushDeath';
+	reason: AmbushReason;
 };
 
-// customised
-type BookEventCreateBonusSnapshot = {
+type BookEventRoundEnd = {
 	index: number;
-	type: 'createBonusSnapshot';
-	bookEvents: BookEvent[];
+	type: 'roundEnd';
+	totalMultiplier: number;
+	result: RoundResult;
 };
 
 export type BookEvent =
-	| BookEventReveal
-	| BookEventWinInfo
-	| BookEventSetTotalWin
-	| BookEventFreeSpinTrigger
-	| BookEventUpdateFreeSpin
-	| BookEventCreateBonusSnapshot
-	| BookEventFinalWin
-	| BookEventSetWin
-	| BookEventFreeSpinEnd
-	// customised
-	| BookEventCreateBonusSnapshot;
+	| BookEventRoundInit
+	| BookEventFodderWave
+	| BookEventBigEnemyKill
+	| BookEventRetaliation
+	| BookEventSpellAttack
+	| BookEventBossEncounter
+	| BookEventBossKill
+	| BookEventAmbushDeath
+	| BookEventRoundEnd;
 
 export type Bet = BetType<BookEvent>;
 export type BookEventOfType<T> = Extract<BookEvent, { type: T }>;
