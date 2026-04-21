@@ -1,25 +1,41 @@
 <script lang="ts">
 	import { buildMockBook } from '../game/mockBook';
 
-	const winBook = buildMockBook('win', 1);
-	const lossBook = buildMockBook('loss', 2);
+	const winBig = buildMockBook('win-big', 1);
+	const winStandard = buildMockBook('win-standard', 2);
+	const lossAmbush = buildMockBook('loss-ambush', 3);
 </script>
 
 <main>
-	<h1>Slay the Beast — Phase B</h1>
+	<h1>Slay the Beast — Phase B.5</h1>
 	<p>
-		Book-event contract locked. Below are two mock books matching <code>typesBookEvent.ts</code>.
-		Phase C will wire these into PixiJS rendering handlers.
+		Book-event contract expanded to <strong>14 variants</strong> covering pickups, sky rides,
+		slowers, terrain hazards, allies, and multiple death flavours. Three mock scenarios below
+		exercise 13/14 variants (terrain-hazard-died covered in Phase C Storybook).
 	</p>
 
 	<section>
-		<h2>Win scenario (id {winBook.id}) — payoutMultiplier {winBook.payoutMultiplier}</h2>
-		<pre>{JSON.stringify(winBook, null, 2)}</pre>
+		<h2>
+			Win (big) — id {winBig.id} — payout {winBig.payoutMultiplier} ({winBig.events.length}
+			events)
+		</h2>
+		<pre>{JSON.stringify(winBig, null, 2)}</pre>
 	</section>
 
 	<section>
-		<h2>Loss scenario (id {lossBook.id}) — payoutMultiplier {lossBook.payoutMultiplier}</h2>
-		<pre>{JSON.stringify(lossBook, null, 2)}</pre>
+		<h2>
+			Win (standard) — id {winStandard.id} — payout {winStandard.payoutMultiplier} ({winStandard
+				.events.length} events)
+		</h2>
+		<pre>{JSON.stringify(winStandard, null, 2)}</pre>
+	</section>
+
+	<section>
+		<h2>
+			Loss (ambush) — id {lossAmbush.id} — payout {lossAmbush.payoutMultiplier} ({lossAmbush
+				.events.length} events)
+		</h2>
+		<pre>{JSON.stringify(lossAmbush, null, 2)}</pre>
 	</section>
 </main>
 
@@ -49,9 +65,7 @@
 		font-size: 0.8rem;
 		line-height: 1.4;
 	}
-	code {
-		background: #222;
-		padding: 0.1em 0.3em;
-		border-radius: 3px;
+	strong {
+		color: #ffcc44;
 	}
 </style>
