@@ -6,68 +6,90 @@ import type {
 	BigEnemyId,
 	BossId,
 	BiomeId,
-	ItemId,
-	PickupEffectType,
-	MountId,
-	AllyId,
-	SlowerKind,
 	SpellKind,
-	HazardId,
-	HazardOutcome,
+	SpeedTier,
+	WaveSize,
+	PowerdownFlavour,
+	DragonAttackType,
+	LightningOutcome,
 	AmbushKillerId,
 	AmbushStyle,
+	BetMode,
 	RoundResult,
 } from './types';
 
 // ---------------------------------------------------------------------------
-// Slay the Beast — BookEvent contract (v1 base mode, 14 variants)
+// Slay the Beast — BookEvent contract (prototype-aligned, v2)
 // ---------------------------------------------------------------------------
 // All gameplay is driven by a pre-computed `book` returned by RGS. Each event
 // is a fully-decided fact — the math-sdk rolls every RNG outcome offline, the
-// client just renders them in order. No randomness is allowed at play time
-// except purely cosmetic variation (death-direction, particle jitter, etc).
+// client just renders them in order. No randomness at play time except
+// purely cosmetic variation (death-direction, particle jitter, etc).
 //
-// Effect lifecycle rules the handler map must honour:
-//   - `pickup` with effectType: 'persistent' applies a buff that stays until
-//     the next `retaliation.effectsBroken[]` / `terrainHazard(outcome:'died')`
-//     / `ambushDeath` clears it.
-//   - `pickup` with effectType: 'timed' self-clears after durationMs.
-//   - `pickup` with effectType: 'instant' applies once, no state.
-//   - `skyRide`, `slower`, `ally` are bounded by durationMs (or the event's
-//     natural length) and never leak into the next event.
-//   - `retaliation.effectsBroken` MUST name every ItemId that was cleared, so
-//     Storybook / the handler can animate each one breaking.
+// Scoring model (dollar-score, matches prototype):
+//   - Score starts at 0, accrues in wager-unit deltas via per-event fields
+//     (killValueEach, scoreGain, scoreDelta).
+//   - A `chest` event is a LITERAL multiplier applied to the cumulative score.
+//   - Passive scroll payout, if any, is pre-accumulated into the surrounding
+//     event's `scoreGain` — it is not its own variant.
+//   - Book-level `payoutMultiplier` is the total round score in wager units.
+//
+// Bet-mode rules the math-sdk must uphold:
+//   - `base`     : full vocab. `ambushDeath` and `finalBossFight(passed)`
+//                  occur at GDD-target rates (~15–20% combined).
+//   - `ante`     : no `ambushDeath`, no `finalBossFight(passed)`. Cost 5×.
+//   - `chaos`    : same as `ante`, plus always reaches `finalBossFight`.
+//                  Cost 100×. The renderer lights the hero with a power glow
+//                  whenever `roundInit.mode === 'chaos'`.
 // ---------------------------------------------------------------------------
 
-/** Fires once at the start of every round. Resets UI state. */
+/** Fires once at the start of every round. Resets UI and sets the bet mode. */
 type BookEventRoundInit = {
 	index: number;
 	type: 'roundInit';
 	heroId: HeroId;
-	startingMultiplier: number;
 	biomeId: BiomeId;
+	mode: BetMode;
 };
 
-/** One wave of small enemies. Kills are drawn from `enemyTypes`. */
+/** Empty beat — scroll continues, nothing spawns. `durationMs` bounds the pause. */
+type BookEventQuietBeat = {
+	index: number;
+	type: 'quietBeat';
+	durationMs: number;
+};
+
+/** Scroll-speed change. Purely pacing; no score impact. */
+type BookEventSpeedChange = {
+	index: number;
+	type: 'speedChange';
+	tier: SpeedTier;
+};
+
+/**
+ * One batch of fodder kills. `size: 'trickle'` spreads them out, `'horde'`
+ * clumps them. `totalScoreGain` is the sum the HUD should land on when the
+ * wave is done; `killValueEach` is cosmetic per-kill granularity.
+ */
 type BookEventFodderWave = {
 	index: number;
 	type: 'fodderWave';
+	size: WaveSize;
 	count: number;
 	killValueEach: number;
-	totalMultiplierGain: number;
+	totalScoreGain: number;
 	enemyTypes: FodderSpriteId[];
-	largeFractionPct: number;
 };
 
-/** One big (mid-tier) enemy dies and awards a chunky multiplier gain. */
+/** One big (mid-tier) enemy dies and awards a chunky score gain. */
 type BookEventBigEnemyKill = {
 	index: number;
 	type: 'bigEnemyKill';
 	enemyId: BigEnemyId;
-	multiplierGain: number;
+	scoreGain: number;
 };
 
-/** Hero casts a spell. Cosmetic only — math drives damage via other events. */
+/** Hero casts a spell. Cosmetic only — math drives score via other events. */
 type BookEventSpellAttack = {
 	index: number;
 	type: 'spellAttack';
@@ -75,98 +97,99 @@ type BookEventSpellAttack = {
 };
 
 /**
- * Hero takes a hit: heart break + multiplier reduction + any persistent
- * pickups clear. Math pre-decides `multiplierAfter`; handler tweens the number.
+ * Giant potion pickup. Hero scales up and doubles kill values for `durationMs`.
+ * `scoreGainDuringBuff` is the pre-decided total the wave beats inside the
+ * buff window should sum to — the handler just animates toward it.
  */
-type BookEventRetaliation = {
+type BookEventPotion = {
 	index: number;
-	type: 'retaliation';
-	multiplierBefore: number;
-	multiplierAfter: number;
-	effectsBroken: ItemId[];
-};
-
-/**
- * A multiplier-draining / pacing-loss hazard. No heart loss. `multiplierDelta`
- * is the total applied over `durationMs`; handler animates the drain.
- */
-type BookEventSlower = {
-	index: number;
-	type: 'slower';
-	kind: SlowerKind;
+	type: 'potion';
 	durationMs: number;
-	multiplierDelta: number;
+	scoreGainDuringBuff: number;
 };
 
 /**
- * A floating item. `acquired: false` means it drifts past uncollected —
- * showing-then-missing is a deliberate fantasy, not a bug. When acquired,
- * `effectType` dictates lifecycle (see module docblock).
+ * Powerdown — score loss without death. `trap` = bear trap, `thief` = coin
+ * thief chase, `curse` = passing curse cloud. `scoreDelta` is negative.
  */
-type BookEventPickup = {
+type BookEventPowerdown = {
 	index: number;
-	type: 'pickup';
-	itemId: ItemId;
-	acquired: boolean;
-	effectType: PickupEffectType;
-	durationMs?: number;
-	multiplierDelta?: number;
+	type: 'powerdown';
+	flavour: PowerdownFlavour;
+	scoreDelta: number;
 };
 
 /**
- * Inline sky-ride cinematic — hero leaps on a mount, flies through a coin
- * stream, drops back to the battlefield. `coinStream` is the pre-decided
- * collection schedule; `totalMultiplierGain` is the sum of all stream values.
+ * Flying dragon swoop. `hit: true` means the dragon connects and applies
+ * `scoreLoss` (usually ~50% of current score); `hit: false` means the hero
+ * evades and nothing is lost.
  */
-type BookEventSkyRide = {
+type BookEventFlyingDragon = {
 	index: number;
-	type: 'skyRide';
-	mountId: MountId;
-	durationMs: number;
-	coinStream: Array<{ t: number; value: number }>;
-	totalMultiplierGain: number;
-};
-
-/** An ally joins for `durationMs` (or until broken by a retaliation). */
-type BookEventAlly = {
-	index: number;
-	type: 'ally';
-	allyId: AllyId;
-	effect: string;
-	durationMs?: number;
+	type: 'flyingDragon';
+	attackType: DragonAttackType;
+	hit: boolean;
+	scoreLoss: number;
 };
 
 /**
- * Terrain moment. `outcome: 'cleared'` → hero jumps it, maybe gains a bonus.
- * `outcome: 'died'` → run ends here; handler dissolves into `ambushDeath`-
- * style cinematic BEFORE `roundEnd`.
+ * Chest pickup. `multiplier` is LITERAL — the cumulative score is multiplied
+ * by this value when the chest is collected. Banner text must show the same
+ * number the math applies. A 10× chest visually/numerically 10×s the score.
  */
-type BookEventTerrainHazard = {
+type BookEventChest = {
 	index: number;
-	type: 'terrainHazard';
-	hazardId: HazardId;
-	outcome: HazardOutcome;
-	multiplierDelta?: number;
+	type: 'chest';
+	multiplier: number;
 };
 
-/** Scroll stops, boss enters on its arena background. */
-type BookEventBossEncounter = {
+/**
+ * Lightning strike (portrait vocab). 95% of the time `outcome: 'penalty'`
+ * and `scoreDelta` is a flat loss. 5% of the time `outcome: 'lightning_mode'`
+ * and the hero enters a `buffDurationMs` auto-zap buff — `scoreGainDuringBuff`
+ * sums the pre-decided auto-kill yield during the buff.
+ */
+type BookEventLightning = {
 	index: number;
-	type: 'bossEncounter';
+	type: 'lightning';
+	outcome: LightningOutcome;
+	scoreDelta: number;
+	buffDurationMs?: number;
+	scoreGainDuringBuff?: number;
+};
+
+/**
+ * Mini-boss fight. `outcome: 'killed'` awards `scoreGain` and the round
+ * continues. `outcome: 'passed'` means the mini-boss walks off without
+ * dying — round ends here at current score (still a "win" if >0). The
+ * renderer tints the mini-boss menacingly and dissolves the scene.
+ */
+type BookEventMiniBossFight = {
+	index: number;
+	type: 'miniBossFight';
+	bossId: BossId;
+	outcome: 'killed' | 'passed';
+	scoreGain: number;
+};
+
+/**
+ * Final-boss fight. `outcome: 'killed'` → `scoreGain` applied, then
+ * `roundEnd(result:'win')`. `outcome: 'passed'` → boss eats the hero,
+ * `roundEnd(result:'loss')` with current score. CHAOS and ANTE modes
+ * never emit `outcome: 'passed'` here.
+ */
+type BookEventFinalBossFight = {
+	index: number;
+	type: 'finalBossFight';
 	bossId: BossId;
 	arenaId: BiomeId;
-};
-
-/** Boss dies. Round continues to `roundEnd`. */
-type BookEventBossKill = {
-	index: number;
-	type: 'bossKill';
-	multiplierGain: number;
+	outcome: 'killed' | 'passed';
+	scoreGain: number;
 };
 
 /**
- * Instant / near-instant run-ender (non-hazard, non-retaliation). `style`
- * picks the animation budget — 'quick' ~1.5s, 'dramatic' ~4s cinematic.
+ * Non-boss instant run-ender. CHAOS and ANTE modes never emit this.
+ * `style` picks cinematic length — 'quick' ≈ 1.5s, 'dramatic' ≈ 4s.
  */
 type BookEventAmbushDeath = {
 	index: number;
@@ -175,27 +198,28 @@ type BookEventAmbushDeath = {
 	style: AmbushStyle;
 };
 
-/** Result reveal. `totalMultiplier` and `result` drive the overlay. */
+/** Result reveal. `payoutMultiplier` drives the overlay number. */
 type BookEventRoundEnd = {
 	index: number;
 	type: 'roundEnd';
-	totalMultiplier: number;
+	payoutMultiplier: number;
 	result: RoundResult;
 };
 
 export type BookEvent =
 	| BookEventRoundInit
+	| BookEventQuietBeat
+	| BookEventSpeedChange
 	| BookEventFodderWave
 	| BookEventBigEnemyKill
 	| BookEventSpellAttack
-	| BookEventRetaliation
-	| BookEventSlower
-	| BookEventPickup
-	| BookEventSkyRide
-	| BookEventAlly
-	| BookEventTerrainHazard
-	| BookEventBossEncounter
-	| BookEventBossKill
+	| BookEventPotion
+	| BookEventPowerdown
+	| BookEventFlyingDragon
+	| BookEventChest
+	| BookEventLightning
+	| BookEventMiniBossFight
+	| BookEventFinalBossFight
 	| BookEventAmbushDeath
 	| BookEventRoundEnd;
 

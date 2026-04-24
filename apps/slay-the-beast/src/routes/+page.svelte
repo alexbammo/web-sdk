@@ -1,41 +1,46 @@
 <script lang="ts">
 	import { buildMockBook } from '../game/mockBook';
 
-	const winBig = buildMockBook('win-big', 1);
-	const winStandard = buildMockBook('win-standard', 2);
-	const lossAmbush = buildMockBook('loss-ambush', 3);
+	const winBigChaos = buildMockBook('win-big-chaos', 1);
+	const winStandardAnte = buildMockBook('win-standard-ante', 2);
+	const lossAmbushBase = buildMockBook('loss-ambush-base', 3);
 </script>
 
 <main>
-	<h1>Slay the Beast — Phase B.5</h1>
+	<h1>Slay the Beast — Phase 0 (prototype-aligned contract)</h1>
 	<p>
-		Book-event contract expanded to <strong>14 variants</strong> covering pickups, sky rides,
-		slowers, terrain hazards, allies, and multiple death flavours. Three mock scenarios below
-		exercise 13/14 variants (terrain-hazard-died covered in Phase C Storybook).
+		Book-event contract rewritten to match the prototype vocab (fodder / big-kill / flying dragon
+		/ chest / potion / powerdown / mini-boss / final-boss / lightning / ambush). Three bet modes
+		wired: <strong>base</strong> (1×), <strong>ante</strong> (5×, no instant death),
+		<strong>chaos</strong> (100×, power glow + guaranteed final boss). These mocks will be
+		replaced by Python math-sdk output in Phase 1.
 	</p>
 
 	<section>
 		<h2>
-			Win (big) — id {winBig.id} — payout {winBig.payoutMultiplier} ({winBig.events.length}
-			events)
+			Win (big, CHAOS mode) — id {winBigChaos.id} — payout {winBigChaos.payoutMultiplier}× ({
+				winBigChaos.events.length
+			} events)
 		</h2>
-		<pre>{JSON.stringify(winBig, null, 2)}</pre>
+		<pre>{JSON.stringify(winBigChaos, null, 2)}</pre>
 	</section>
 
 	<section>
 		<h2>
-			Win (standard) — id {winStandard.id} — payout {winStandard.payoutMultiplier} ({winStandard
-				.events.length} events)
+			Win (standard, ANTE mode) — id {winStandardAnte.id} — payout {winStandardAnte.payoutMultiplier}× ({
+				winStandardAnte.events.length
+			} events)
 		</h2>
-		<pre>{JSON.stringify(winStandard, null, 2)}</pre>
+		<pre>{JSON.stringify(winStandardAnte, null, 2)}</pre>
 	</section>
 
 	<section>
 		<h2>
-			Loss (ambush) — id {lossAmbush.id} — payout {lossAmbush.payoutMultiplier} ({lossAmbush
-				.events.length} events)
+			Loss (ambush, BASE mode) — id {lossAmbushBase.id} — payout {lossAmbushBase.payoutMultiplier}× ({
+				lossAmbushBase.events.length
+			} events)
 		</h2>
-		<pre>{JSON.stringify(lossAmbush, null, 2)}</pre>
+		<pre>{JSON.stringify(lossAmbushBase, null, 2)}</pre>
 	</section>
 </main>
 

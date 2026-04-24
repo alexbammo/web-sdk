@@ -1,4 +1,4 @@
-// Characters
+// Heroes
 
 export const HERO_IDS = [
 	'male_warrior',
@@ -8,6 +8,8 @@ export const HERO_IDS = [
 	'male_wizard',
 ] as const;
 export type HeroId = (typeof HERO_IDS)[number];
+
+// Fodder enemies — the dozens-per-wave trash the hero cuts through.
 
 export const FODDER_SPRITE_IDS = [
 	'monster_01',
@@ -21,8 +23,12 @@ export const FODDER_SPRITE_IDS = [
 ] as const;
 export type FodderSpriteId = (typeof FODDER_SPRITE_IDS)[number];
 
+// Mid-tier "big kill" enemies.
+
 export const BIG_ENEMY_IDS = ['dragon', 'cyclops', 'demon', 'bear'] as const;
 export type BigEnemyId = (typeof BIG_ENEMY_IDS)[number];
+
+// Boss sprites — mini and final share the pool.
 
 export const BOSS_IDS = [
 	'behemoth',
@@ -33,87 +39,42 @@ export const BOSS_IDS = [
 ] as const;
 export type BossId = (typeof BOSS_IDS)[number];
 
-// Arenas / biomes — v1 ships one or two, rendered as background swaps.
+// Biomes / arenas — background swap only.
 
 export const BIOME_IDS = ['grasslands', 'wasteland'] as const;
 export type BiomeId = (typeof BIOME_IDS)[number];
 
-// Pickups — floating items the hero may or may not acquire.
-// Effect shapes:
-//   timed      → effect lasts durationMs, self-clearing
-//   persistent → effect lasts until broken by retaliation / terrainHazard(died) / ambushDeath
-//   instant    → effect applies immediately (coin, shrine), no lingering state
-
-export const ITEM_IDS = [
-	'fire_sword',
-	'plate_armour',
-	'giant_potion',
-	'lucky_ring',
-	'magic_rune',
-	'battle_banner',
-	'shrine_blessing',
-	'gold_coin',
-] as const;
-export type ItemId = (typeof ITEM_IDS)[number];
-
-export const PICKUP_EFFECT_TYPES = ['timed', 'persistent', 'instant'] as const;
-export type PickupEffectType = (typeof PICKUP_EFFECT_TYPES)[number];
-
-// Sky ride mounts — timed cinematic boost; rides themselves inline in base mode.
-
-export const MOUNT_IDS = [
-	'unicorn',
-	'rainbow_dragon',
-	'phoenix',
-	'griffin',
-	'pegasus',
-	'magic_carpet',
-	'giant_eagle',
-	'tornado',
-	'cloud_whale',
-] as const;
-export type MountId = (typeof MOUNT_IDS)[number];
-
-// Allies — summoned helpers that affect kill pace or absorb hits.
-
-export const ALLY_IDS = ['wolf', 'ogre', 'bard'] as const;
-export type AllyId = (typeof ALLY_IDS)[number];
-
-// Slowers — multiplier-draining / pacing-loss hazards (no heart loss).
-
-export const SLOWER_KINDS = [
-	'storm_cloud',
-	'swamp',
-	'tar_pit',
-	'leech_swarm',
-	'cursed_mist',
-	'ghost_drain',
-	'gold_thief_goblin',
-	'mimic_chest',
-	'rust_cloud',
-] as const;
-export type SlowerKind = (typeof SLOWER_KINDS)[number];
-
-// Terrain hazards — pre-decided jump-or-fall moments. `outcome: 'cleared' | 'died'`.
-
-export const HAZARD_IDS = [
-	'tentacle_pit',
-	'cliff_edge',
-	'lava_gap',
-	'spike_trap',
-	'chasm',
-	'cannon',
-] as const;
-export type HazardId = (typeof HAZARD_IDS)[number];
-
-export type HazardOutcome = 'cleared' | 'died';
-
-// Spells — cosmetic flavour for spellAttack variant.
+// Cosmetic spell flavours — decides particle kit only.
 
 export const SPELL_KINDS = ['fire', 'ice', 'lightning', 'arcane'] as const;
 export type SpellKind = (typeof SPELL_KINDS)[number];
 
-// Ambush death flavours — which way the run ends.
+// Pacing — scroll speed tier for a `speedChange` beat.
+
+export const SPEED_TIERS = ['stroll', 'run', 'sprint'] as const;
+export type SpeedTier = (typeof SPEED_TIERS)[number];
+
+// Fodder-wave density. `trickle` = few enemies over a long window, `horde` = many close together.
+
+export const WAVE_SIZES = ['trickle', 'horde'] as const;
+export type WaveSize = (typeof WAVE_SIZES)[number];
+
+// Powerdown flavours — the three ways the hero loses score without dying.
+
+export const POWERDOWN_FLAVOURS = ['trap', 'thief', 'curse'] as const;
+export type PowerdownFlavour = (typeof POWERDOWN_FLAVOURS)[number];
+
+// Flying-dragon attacks — 'fireball' splash, 'poop' is the tongue-in-cheek cursed variant.
+
+export const DRAGON_ATTACK_TYPES = ['fireball', 'poop'] as const;
+export type DragonAttackType = (typeof DRAGON_ATTACK_TYPES)[number];
+
+// Lightning resolves to a penalty 95% of the time and a LIGHTNING MODE buff 5% of the time.
+
+export const LIGHTNING_OUTCOMES = ['penalty', 'lightning_mode'] as const;
+export type LightningOutcome = (typeof LIGHTNING_OUTCOMES)[number];
+
+// Ambush flavours — instant run-enders that aren't a boss encounter.
 
 export const AMBUSH_KILLER_IDS = [
 	'frog',
@@ -130,14 +91,17 @@ export const AMBUSH_KILLER_IDS = [
 ] as const;
 export type AmbushKillerId = (typeof AMBUSH_KILLER_IDS)[number];
 
-// 'quick' = short cinematic (~1.5s). 'dramatic' = long cinematic (~4s).
+// 'quick' ≈ 1.5s cinematic. 'dramatic' ≈ 4s cinematic.
 export type AmbushStyle = 'quick' | 'dramatic';
 
-// Round outcome / bet mode.
+// Round outcome.
 
 export type RoundResult = 'win' | 'loss';
 
-export const BET_MODES = ['base'] as const;
-export type BetMode = (typeof BET_MODES)[number];
+// Bet modes — base / ante / chaos.
+// `ante` is the 5× stake that removes instant-death events ("guarantee").
+// `chaos` is the 100× stake that also paints a power glow on the hero and
+// guarantees final-zone reach.
 
-export const STARTING_HEARTS = 3;
+export const BET_MODES = ['base', 'ante', 'chaos'] as const;
+export type BetMode = (typeof BET_MODES)[number];
