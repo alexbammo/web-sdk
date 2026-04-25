@@ -7,7 +7,11 @@ export type MockBook = {
 	payoutMultiplier: number;
 };
 
-export type MockScenario = 'win-big-chaos' | 'win-standard-ante' | 'loss-ambush-base';
+export type MockScenario =
+	| 'win-big-chaos'
+	| 'win-standard-ante'
+	| 'loss-banana-base'
+	| 'loss-combust-base';
 
 const FODDER_POOL = [...FODDER_SPRITE_IDS];
 
@@ -110,7 +114,7 @@ const buildWinStandardAnte = (id: number): MockBook => {
 	return { id, events, payoutMultiplier: 120 };
 };
 
-const buildLossAmbushBase = (id: number): MockBook => {
+const buildLossBananaBase = (id: number): MockBook => {
 	// Score trace: 0 +12 -5(trap) +10 -8(dragon hit) +3(big) → ambushDeath → 0
 	const events: BookEvent[] = [
 		{ index: 0, type: 'roundInit', heroId: 'male_thief', biomeId: 'wasteland', mode: 'base' },
@@ -137,8 +141,38 @@ const buildLossAmbushBase = (id: number): MockBook => {
 		},
 		{ index: 6, type: 'flyingDragon', attackType: 'poop', hit: true, scoreLoss: 8 },
 		{ index: 7, type: 'bigEnemyKill', enemyId: 'bear', scoreGain: 3 },
-		{ index: 8, type: 'ambushDeath', killerId: 'banana_peel', style: 'quick' },
+		{ index: 8, type: 'ambushDeath', killerId: 'banana_peel' },
 		{ index: 9, type: 'roundEnd', payoutMultiplier: 0, result: 'loss' },
+	];
+	return { id, events, payoutMultiplier: 0 };
+};
+
+const buildLossCombustBase = (id: number): MockBook => {
+	// Score trace: 0 +9 +6(big) +14 → spontaneous_combustion (no warning) → 0
+	const events: BookEvent[] = [
+		{ index: 0, type: 'roundInit', heroId: 'male_archer', biomeId: 'grasslands', mode: 'base' },
+		{ index: 1, type: 'speedChange', tier: 'stroll' },
+		{
+			index: 2,
+			type: 'fodderWave',
+			size: 'trickle',
+			count: 22,
+			killValueEach: 0.41,
+			totalScoreGain: 9,
+			enemyTypes: FODDER_POOL,
+		},
+		{ index: 3, type: 'bigEnemyKill', enemyId: 'demon', scoreGain: 6 },
+		{
+			index: 4,
+			type: 'fodderWave',
+			size: 'horde',
+			count: 50,
+			killValueEach: 0.28,
+			totalScoreGain: 14,
+			enemyTypes: FODDER_POOL,
+		},
+		{ index: 5, type: 'ambushDeath', killerId: 'spontaneous_combustion' },
+		{ index: 6, type: 'roundEnd', payoutMultiplier: 0, result: 'loss' },
 	];
 	return { id, events, payoutMultiplier: 0 };
 };
@@ -149,7 +183,9 @@ export const buildMockBook = (scenario: MockScenario, id = 1): MockBook => {
 			return buildWinBigChaos(id);
 		case 'win-standard-ante':
 			return buildWinStandardAnte(id);
-		case 'loss-ambush-base':
-			return buildLossAmbushBase(id);
+		case 'loss-banana-base':
+			return buildLossBananaBase(id);
+		case 'loss-combust-base':
+			return buildLossCombustBase(id);
 	}
 };

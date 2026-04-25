@@ -75,24 +75,10 @@ export const LIGHTNING_OUTCOMES = ['penalty', 'lightning_mode'] as const;
 export type LightningOutcome = (typeof LIGHTNING_OUTCOMES)[number];
 
 // Ambush flavours — instant run-enders that aren't a boss encounter.
-
-export const AMBUSH_KILLER_IDS = [
-	'frog',
-	'giant_foot',
-	'meteor',
-	'shark',
-	'gelatinous_cube',
-	'banana_peel',
-	'dragon_swoop',
-	'medusa',
-	'vampire',
-	'skeletal_hand',
-	'self_spell',
-] as const;
+// v1 ships with two: a no-warning sprite-shatter pop, and the comedic banana
+// slip. Pacing is implicit per flavour; there is no separate style axis.
+export const AMBUSH_KILLER_IDS = ['spontaneous_combustion', 'banana_peel'] as const;
 export type AmbushKillerId = (typeof AMBUSH_KILLER_IDS)[number];
-
-// 'quick' ≈ 1.5s cinematic. 'dramatic' ≈ 4s cinematic.
-export type AmbushStyle = 'quick' | 'dramatic';
 
 // Round outcome.
 

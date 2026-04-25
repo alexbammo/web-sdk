@@ -13,7 +13,6 @@ import type {
 	DragonAttackType,
 	LightningOutcome,
 	AmbushKillerId,
-	AmbushStyle,
 	BetMode,
 	RoundResult,
 } from './types';
@@ -189,13 +188,14 @@ type BookEventFinalBossFight = {
 
 /**
  * Non-boss instant run-ender. CHAOS and ANTE modes never emit this.
- * `style` picks cinematic length — 'quick' ≈ 1.5s, 'dramatic' ≈ 4s.
+ * Pacing is implicit per `killerId`:
+ *  - 'spontaneous_combustion' — no-warning ~1.5s sprite-shatter pop.
+ *  - 'banana_peel' — ~1.5s comedic slip.
  */
 type BookEventAmbushDeath = {
 	index: number;
 	type: 'ambushDeath';
 	killerId: AmbushKillerId;
-	style: AmbushStyle;
 };
 
 /** Result reveal. `payoutMultiplier` drives the overlay number. */

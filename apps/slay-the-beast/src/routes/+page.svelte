@@ -3,7 +3,8 @@
 
 	const winBigChaos = buildMockBook('win-big-chaos', 1);
 	const winStandardAnte = buildMockBook('win-standard-ante', 2);
-	const lossAmbushBase = buildMockBook('loss-ambush-base', 3);
+	const lossBananaBase = buildMockBook('loss-banana-base', 3);
+	const lossCombustBase = buildMockBook('loss-combust-base', 4);
 </script>
 
 <main>
@@ -36,11 +37,20 @@
 
 	<section>
 		<h2>
-			Loss (ambush, BASE mode) — id {lossAmbushBase.id} — payout {lossAmbushBase.payoutMultiplier}× ({
-				lossAmbushBase.events.length
+			Loss (banana ambush, BASE mode) — id {lossBananaBase.id} — payout {lossBananaBase.payoutMultiplier}× ({
+				lossBananaBase.events.length
 			} events)
 		</h2>
-		<pre>{JSON.stringify(lossAmbushBase, null, 2)}</pre>
+		<pre>{JSON.stringify(lossBananaBase, null, 2)}</pre>
+	</section>
+
+	<section>
+		<h2>
+			Loss (spontaneous combustion, BASE mode) — id {lossCombustBase.id} — payout {lossCombustBase.payoutMultiplier}× ({
+				lossCombustBase.events.length
+			} events)
+		</h2>
+		<pre>{JSON.stringify(lossCombustBase, null, 2)}</pre>
 	</section>
 </main>
 
