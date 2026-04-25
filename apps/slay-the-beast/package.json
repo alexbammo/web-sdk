@@ -5,7 +5,7 @@
 	"license": "MIT",
 	"scripts": {
 		"format": "prettier --write --ignore-path=../../.prettierignore .",
-		"lint": "eslint \"src\"",
+		"lint": "eslint --no-error-on-unmatched-pattern \"src\"",
 		"storybook": "PUBLIC_CHROMATIC=true storybook dev -p 6007 public",
 		"dev": "vite dev --host --port 3007",
 		"build": "vite build",

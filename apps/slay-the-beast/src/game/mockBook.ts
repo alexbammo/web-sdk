@@ -1,5 +1,6 @@
 import type { BookEvent } from './typesBookEvent';
 import { FODDER_SPRITE_IDS } from './types';
+import { validateBook } from './validateBook';
 
 export type MockBook = {
 	id: number;
@@ -11,7 +12,10 @@ export type MockScenario =
 	| 'win-big-chaos'
 	| 'win-standard-ante'
 	| 'loss-banana-base'
-	| 'loss-combust-base';
+	| 'loss-combust-base'
+	| 'win-lightning-mode-base'
+	| 'win-mini-passed-base'
+	| 'loss-final-passed-base';
 
 const FODDER_POOL = [...FODDER_SPRITE_IDS];
 
@@ -177,15 +181,145 @@ const buildLossCombustBase = (id: number): MockBook => {
 	return { id, events, payoutMultiplier: 0 };
 };
 
+// ---------------------------------------------------------------------------
+// Coverage scenarios — exercise outcomes the original four mocks miss:
+//   - lightning.outcome === 'lightning_mode'   (the 5% upside)
+//   - miniBossFight.outcome === 'passed'       (round ends, score banked)
+//   - finalBossFight.outcome === 'passed'      (loss, score forfeit — base only)
+// ---------------------------------------------------------------------------
+
+const buildWinLightningModeBase = (id: number): MockBook => {
+	// Score trace: 0 +5(trickle) +0(lightning_mode kicks in) +25(buff yield) +10(mini) +20(final) = 60
+	const events: BookEvent[] = [
+		{ index: 0, type: 'roundInit', heroId: 'male_wizard', biomeId: 'grasslands', mode: 'base' },
+		{ index: 1, type: 'speedChange', tier: 'stroll' },
+		{
+			index: 2,
+			type: 'fodderWave',
+			size: 'trickle',
+			count: 18,
+			killValueEach: 0.28,
+			totalScoreGain: 5,
+			enemyTypes: FODDER_POOL,
+		},
+		{
+			index: 3,
+			type: 'lightning',
+			outcome: 'lightning_mode',
+			scoreDelta: 0,
+			buffDurationMs: 5000,
+			scoreGainDuringBuff: 25,
+		},
+		{ index: 4, type: 'miniBossFight', bossId: 'behemoth', outcome: 'killed', scoreGain: 10 },
+		{
+			index: 5,
+			type: 'finalBossFight',
+			bossId: 'evil_king',
+			arenaId: 'grasslands',
+			outcome: 'killed',
+			scoreGain: 20,
+		},
+		{ index: 6, type: 'roundEnd', payoutMultiplier: 60, result: 'win' },
+	];
+	return { id, events, payoutMultiplier: 60 };
+};
+
+const buildWinMiniPassedBase = (id: number): MockBook => {
+	// Score trace: 0 +8(trickle) +6(big) +5(trickle) → mini PASSED (round ends, score banked) = 19
+	// Mini-boss 'passed' is a round-ender that BANKS the cumulative score (not a loss).
+	const events: BookEvent[] = [
+		{ index: 0, type: 'roundInit', heroId: 'male_archer', biomeId: 'wasteland', mode: 'base' },
+		{ index: 1, type: 'speedChange', tier: 'run' },
+		{
+			index: 2,
+			type: 'fodderWave',
+			size: 'trickle',
+			count: 25,
+			killValueEach: 0.32,
+			totalScoreGain: 8,
+			enemyTypes: FODDER_POOL,
+		},
+		{ index: 3, type: 'bigEnemyKill', enemyId: 'cyclops', scoreGain: 6 },
+		{
+			index: 4,
+			type: 'fodderWave',
+			size: 'horde',
+			count: 30,
+			killValueEach: 0.17,
+			totalScoreGain: 5,
+			enemyTypes: FODDER_POOL,
+		},
+		{ index: 5, type: 'miniBossFight', bossId: 'boss_dragon', outcome: 'passed', scoreGain: 0 },
+		{ index: 6, type: 'roundEnd', payoutMultiplier: 19, result: 'win' },
+	];
+	return { id, events, payoutMultiplier: 19 };
+};
+
+const buildLossFinalPassedBase = (id: number): MockBook => {
+	// Score trace: 0 +10(trickle) +5(big) +12(horde) +6(big) +10(mini) → final PASSED → 0
+	// TODO(math-sdk): confirm finalBoss 'passed' forfeits cumulative score (→ 0). The contract
+	// docstring at typesBookEvent.ts:174-187 reads "boss eats the hero, roundEnd(result:'loss')",
+	// which we encode here as a forfeit. If math-sdk rules say "loss with current score banked",
+	// flip payoutMultiplier here and update validateBook accordingly.
+	const events: BookEvent[] = [
+		{ index: 0, type: 'roundInit', heroId: 'male_warrior', biomeId: 'grasslands', mode: 'base' },
+		{ index: 1, type: 'speedChange', tier: 'run' },
+		{
+			index: 2,
+			type: 'fodderWave',
+			size: 'trickle',
+			count: 30,
+			killValueEach: 0.33,
+			totalScoreGain: 10,
+			enemyTypes: FODDER_POOL,
+		},
+		{ index: 3, type: 'bigEnemyKill', enemyId: 'dragon', scoreGain: 5 },
+		{
+			index: 4,
+			type: 'fodderWave',
+			size: 'horde',
+			count: 50,
+			killValueEach: 0.24,
+			totalScoreGain: 12,
+			enemyTypes: FODDER_POOL,
+		},
+		{ index: 5, type: 'bigEnemyKill', enemyId: 'bear', scoreGain: 6 },
+		{ index: 6, type: 'miniBossFight', bossId: 'behemoth', outcome: 'killed', scoreGain: 10 },
+		{ index: 7, type: 'speedChange', tier: 'sprint' },
+		{
+			index: 8,
+			type: 'finalBossFight',
+			bossId: 'dark_lord',
+			arenaId: 'wasteland',
+			outcome: 'passed',
+			scoreGain: 0,
+		},
+		{ index: 9, type: 'roundEnd', payoutMultiplier: 0, result: 'loss' },
+	];
+	return { id, events, payoutMultiplier: 0 };
+};
+
 export const buildMockBook = (scenario: MockScenario, id = 1): MockBook => {
-	switch (scenario) {
-		case 'win-big-chaos':
-			return buildWinBigChaos(id);
-		case 'win-standard-ante':
-			return buildWinStandardAnte(id);
-		case 'loss-banana-base':
-			return buildLossBananaBase(id);
-		case 'loss-combust-base':
-			return buildLossCombustBase(id);
-	}
+	const book = (() => {
+		switch (scenario) {
+			case 'win-big-chaos':
+				return buildWinBigChaos(id);
+			case 'win-standard-ante':
+				return buildWinStandardAnte(id);
+			case 'loss-banana-base':
+				return buildLossBananaBase(id);
+			case 'loss-combust-base':
+				return buildLossCombustBase(id);
+			case 'win-lightning-mode-base':
+				return buildWinLightningModeBase(id);
+			case 'win-mini-passed-base':
+				return buildWinMiniPassedBase(id);
+			case 'loss-final-passed-base':
+				return buildLossFinalPassedBase(id);
+		}
+	})();
+	// Throws on bet-mode / structural violations. Crash fast in dev rather than
+	// ship a broken book to the renderer.
+	validateBook(book);
+	return book;
 };

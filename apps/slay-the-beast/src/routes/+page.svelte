@@ -5,6 +5,9 @@
 	const winStandardAnte = buildMockBook('win-standard-ante', 2);
 	const lossBananaBase = buildMockBook('loss-banana-base', 3);
 	const lossCombustBase = buildMockBook('loss-combust-base', 4);
+	const winLightningMode = buildMockBook('win-lightning-mode-base', 5);
+	const winMiniPassed = buildMockBook('win-mini-passed-base', 6);
+	const lossFinalPassed = buildMockBook('loss-final-passed-base', 7);
 </script>
 
 <main>
@@ -51,6 +54,33 @@
 			} events)
 		</h2>
 		<pre>{JSON.stringify(lossCombustBase, null, 2)}</pre>
+	</section>
+
+	<section>
+		<h2>
+			Win (LIGHTNING MODE buff, BASE mode) — id {winLightningMode.id} — payout {winLightningMode.payoutMultiplier}× ({
+				winLightningMode.events.length
+			} events)
+		</h2>
+		<pre>{JSON.stringify(winLightningMode, null, 2)}</pre>
+	</section>
+
+	<section>
+		<h2>
+			Win (mini-boss PASSED, BASE mode) — id {winMiniPassed.id} — payout {winMiniPassed.payoutMultiplier}× ({
+				winMiniPassed.events.length
+			} events)
+		</h2>
+		<pre>{JSON.stringify(winMiniPassed, null, 2)}</pre>
+	</section>
+
+	<section>
+		<h2>
+			Loss (final-boss PASSED, BASE mode) — id {lossFinalPassed.id} — payout {lossFinalPassed.payoutMultiplier}× ({
+				lossFinalPassed.events.length
+			} events)
+		</h2>
+		<pre>{JSON.stringify(lossFinalPassed, null, 2)}</pre>
 	</section>
 </main>
 

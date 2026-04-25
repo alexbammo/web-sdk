@@ -11,7 +11,6 @@ import type {
 	WaveSize,
 	PowerdownFlavour,
 	DragonAttackType,
-	LightningOutcome,
 	AmbushKillerId,
 	BetMode,
 	RoundResult,
@@ -143,19 +142,32 @@ type BookEventChest = {
 };
 
 /**
- * Lightning strike (portrait vocab). 95% of the time `outcome: 'penalty'`
- * and `scoreDelta` is a flat loss. 5% of the time `outcome: 'lightning_mode'`
- * and the hero enters a `buffDurationMs` auto-zap buff — `scoreGainDuringBuff`
- * sums the pre-decided auto-kill yield during the buff.
+ * Lightning strike (portrait vocab). Discriminated on `outcome`:
+ *  - `penalty`        — 95% case. `scoreDelta` is a flat negative loss.
+ *  - `lightning_mode` — 5% case. Hero enters an auto-zap buff for
+ *    `buffDurationMs`; `scoreGainDuringBuff` sums the pre-decided auto-kill
+ *    yield during the buff. No score penalty.
+ *
+ * Splitting the union forces the math-sdk to populate the buff fields when
+ * it emits `lightning_mode`, and forbids stray buff fields on `penalty`.
  */
-type BookEventLightning = {
+type BookEventLightningPenalty = {
 	index: number;
 	type: 'lightning';
-	outcome: LightningOutcome;
+	outcome: 'penalty';
 	scoreDelta: number;
-	buffDurationMs?: number;
-	scoreGainDuringBuff?: number;
 };
+
+type BookEventLightningMode = {
+	index: number;
+	type: 'lightning';
+	outcome: 'lightning_mode';
+	scoreDelta: 0;
+	buffDurationMs: number;
+	scoreGainDuringBuff: number;
+};
+
+type BookEventLightning = BookEventLightningPenalty | BookEventLightningMode;
 
 /**
  * Mini-boss fight. `outcome: 'killed'` awards `scoreGain` and the round
