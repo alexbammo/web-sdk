@@ -154,7 +154,7 @@ const buildLossBananaBase = (id: number): MockBook => {
 const buildLossCombustBase = (id: number): MockBook => {
 	// Score trace: 0 +9 +6(big) +14 → spontaneous_combustion (no warning) → 0
 	const events: BookEvent[] = [
-		{ index: 0, type: 'roundInit', heroId: 'male_archer', biomeId: 'grasslands', mode: 'base' },
+		{ index: 0, type: 'roundInit', heroId: 'male_thief', biomeId: 'grasslands', mode: 'base' },
 		{ index: 1, type: 'speedChange', tier: 'stroll' },
 		{
 			index: 2,
@@ -228,7 +228,7 @@ const buildWinMiniPassedBase = (id: number): MockBook => {
 	// Score trace: 0 +8(trickle) +6(big) +5(trickle) → mini PASSED (round ends, score banked) = 19
 	// Mini-boss 'passed' is a round-ender that BANKS the cumulative score (not a loss).
 	const events: BookEvent[] = [
-		{ index: 0, type: 'roundInit', heroId: 'male_archer', biomeId: 'wasteland', mode: 'base' },
+		{ index: 0, type: 'roundInit', heroId: 'male_thief', biomeId: 'wasteland', mode: 'base' },
 		{ index: 1, type: 'speedChange', tier: 'run' },
 		{
 			index: 2,

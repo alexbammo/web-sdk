@@ -7,6 +7,12 @@ import type { BetMode } from './types';
 // structural shape rules. Throws on the first violation with a descriptive
 // message — call sites are expected to crash fast in dev rather than ship a
 // broken book to the renderer.
+//
+// 2026-04-30: redesigned to the "death banks score" model. ambushDeath and
+// finalBossFight(passed) no longer force payoutMultiplier=0 — they bank the
+// cumulative score earned up to that point. result is now purely a function
+// of payoutMultiplier (>0 → 'win', =0 → 'loss'). Chaos no longer required
+// to reach finalBossFight; just elevated probability in math-sdk.
 // ---------------------------------------------------------------------------
 
 export type BookForValidation = {
@@ -34,17 +40,13 @@ export const validateBook = (book: BookForValidation): void => {
 
 	const mode: BetMode = first.mode;
 
-	// Bet-mode invariants.
+	// Bet-mode invariants. Ante's value prop is "guaranteed full-length round"
+	// (paid 5× for it); ambush still forbidden. Chaos value prop is "huge wins
+	// available" (paid 100×); ambush still forbidden but final-reach is no
+	// longer required to be 100% — math-sdk just biases toward it.
 	const hasAmbush = events.some((e) => e.type === 'ambushDeath');
-	const finalBosses = events.filter((e) => e.type === 'finalBossFight');
-	const finalPassed = finalBosses.some((e) => e.outcome === 'passed');
-
-	if (mode === 'ante' || mode === 'chaos') {
-		if (hasAmbush) throw new Error(`${tag}: mode=${mode} forbids ambushDeath`);
-		if (finalPassed) throw new Error(`${tag}: mode=${mode} forbids finalBossFight.outcome='passed'`);
-	}
-	if (mode === 'chaos' && finalBosses.length === 0) {
-		throw new Error(`${tag}: mode=chaos must reach finalBossFight (none present)`);
+	if ((mode === 'ante' || mode === 'chaos') && hasAmbush) {
+		throw new Error(`${tag}: mode=${mode} forbids ambushDeath`);
 	}
 
 	// Chest multipliers must be positive finite.
@@ -54,23 +56,20 @@ export const validateBook = (book: BookForValidation): void => {
 		}
 	}
 
-	// roundEnd coherence: a loss must be triggered by a recognised round-ender
-	// (ambushDeath or finalBossFight 'passed') and must payout 0; a win must
-	// payout > 0.
-	if (last.result === 'loss') {
-		if (!hasAmbush && !finalPassed) {
-			throw new Error(`${tag}: result='loss' but no ambushDeath or finalBossFight 'passed' present`);
-		}
-		if (last.payoutMultiplier !== 0) {
-			throw new Error(`${tag}: result='loss' but payoutMultiplier=${last.payoutMultiplier} (must be 0)`);
-		}
-	} else {
-		// 'win'
-		if (hasAmbush) throw new Error(`${tag}: result='win' but events contain ambushDeath`);
-		if (finalPassed) throw new Error(`${tag}: result='win' but finalBossFight.outcome='passed'`);
-		if (last.payoutMultiplier <= 0) {
-			throw new Error(`${tag}: result='win' but payoutMultiplier=${last.payoutMultiplier} (must be > 0)`);
-		}
+	// roundEnd coherence under the banked-score model:
+	// payoutMultiplier === 0  →  result must be 'loss'
+	// payoutMultiplier  >  0  →  result must be 'win'
+	// Either case is valid regardless of whether ambushDeath / finalBossFight
+	// 'passed' / mini-boss 'passed' is present — those events bank the score
+	// rather than forfeit it.
+	if (!Number.isFinite(last.payoutMultiplier) || last.payoutMultiplier < 0) {
+		throw new Error(`${tag}: roundEnd.payoutMultiplier=${last.payoutMultiplier} must be >= 0 finite`);
+	}
+	if (last.payoutMultiplier === 0 && last.result !== 'loss') {
+		throw new Error(`${tag}: payoutMultiplier=0 but result='${last.result}' (must be 'loss')`);
+	}
+	if (last.payoutMultiplier > 0 && last.result !== 'win') {
+		throw new Error(`${tag}: payoutMultiplier=${last.payoutMultiplier} > 0 but result='${last.result}' (must be 'win')`);
 	}
 
 	// Top-level payoutMultiplier must equal the roundEnd's.
@@ -78,5 +77,37 @@ export const validateBook = (book: BookForValidation): void => {
 		throw new Error(
 			`${tag}: top-level payoutMultiplier=${payoutMultiplier} disagrees with roundEnd.payoutMultiplier=${last.payoutMultiplier}`,
 		);
+	}
+
+	// Erosion-window invariant. The renderer detects the "post-mini-kill score
+	// erosion" path by watching for a powerdown/lightning(penalty)/flyingDragon
+	// event that immediately follows a miniBossFight(killed). For that
+	// heuristic to be safe, the only legal events directly after a kept
+	// mini-boss kill are: roundEnd (no erosion), finalBossFight (the mini was
+	// just a setup beat), or exactly one erosion event followed by roundEnd.
+	// Any other shape would mis-fire the wounded-flinch beat.
+	for (let i = 0; i < events.length; i++) {
+		const e = events[i];
+		if (e.type !== 'miniBossFight' || e.outcome !== 'killed') continue;
+		const next = events[i + 1];
+		if (!next) continue;
+		if (next.type === 'roundEnd' || next.type === 'finalBossFight') continue;
+		const isErosion =
+			next.type === 'powerdown' ||
+			(next.type === 'lightning' && next.outcome === 'penalty') ||
+			(next.type === 'flyingDragon' && next.hit === true);
+		if (!isErosion) {
+			throw new Error(
+				`${tag}: event after miniBossFight(killed) must be roundEnd | finalBossFight | erosion ` +
+					`(powerdown / lightning(penalty) / flyingDragon(hit)); got ${next.type}`,
+			);
+		}
+		const after = events[i + 2];
+		if (!after || after.type !== 'roundEnd') {
+			throw new Error(
+				`${tag}: erosion event after miniBossFight(killed) must be immediately followed by roundEnd; ` +
+					`got ${after?.type ?? '<missing>'}`,
+			);
+		}
 	}
 };

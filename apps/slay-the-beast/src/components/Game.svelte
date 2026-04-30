@@ -8,12 +8,9 @@
 	import { playBook } from '../game/utils';
 	import { pickBook } from '../game/bookSource';
 	import { BET_MODES, type BetMode } from '../game/types';
+	import Scene from './Scene.svelte';
 
 	const context = getContext();
-
-	// Stream 1: minimal scene — title + live state + result overlay.
-	// Stream 2 will replace the placeholder text with the prototype-portrait scene
-	// (parallax bg, hero sprite, enemy pool, particle layer, banner layer).
 
 	let resultOverlay: { payoutMultiplier: number; result: 'win' | 'loss' } | null = $state(null);
 
@@ -48,52 +45,61 @@
 
 <App>
 	<MainContainer>
-		<Container x={270} y={120}>
+		<!-- Gameplay scene (background + hero + actors + floaters + flash overlay).
+		     Renders behind the HUD; AssetsLoader gates this until sprites preload. -->
+		<Scene />
+
+		<!-- HUD: title strip at top, big score readout, status under it. -->
+		<Container x={270} y={32}>
 			<Text
 				anchor={{ x: 0.5, y: 0 }}
 				text="SLAY THE BEAST"
 				style={{
 					fontFamily: 'proxima-nova',
-					fontSize: REM * 2.25,
+					fontSize: REM * 1.5,
 					fontWeight: '800',
 					fill: 0xffcc44,
+					stroke: { color: 0x000000, width: 4 },
 				}}
 			/>
 		</Container>
 
-		<Container x={270} y={200}>
+		<Container x={270} y={72}>
 			<Text
 				anchor={{ x: 0.5, y: 0 }}
-				text={`Mode: ${stateGame.mode.toUpperCase()}    Hero: ${stateGame.heroId}    Biome: ${stateGame.biomeId}`}
+				text={`${stateGame.mode.toUpperCase()}  ·  ${stateGame.heroId}  ·  ${stateGame.biomeId}`}
 				style={{
 					fontFamily: 'proxima-nova',
-					fontSize: REM * 0.875,
-					fill: 0xaaccdd,
+					fontSize: REM * 0.7,
+					fill: 0xddeeff,
+					stroke: { color: 0x000000, width: 3 },
 				}}
 			/>
 		</Container>
 
-		<Container x={270} y={480}>
+		<Container x={270} y={130}>
 			<Text
 				anchor={{ x: 0.5, y: 0.5 }}
 				text={`$${stateGame.cumulativeScore.toFixed(2)}`}
 				style={{
 					fontFamily: 'proxima-nova',
-					fontSize: REM * 4,
+					fontSize: REM * 2.6,
 					fontWeight: '800',
 					fill: stateGame.isPlaying ? 0xffffff : 0x88aabb,
+					stroke: { color: 0x000000, width: 4 },
 				}}
 			/>
 		</Container>
 
-		<Container x={270} y={580}>
+		<Container x={270} y={172}>
 			<Text
 				anchor={{ x: 0.5, y: 0 }}
 				text={stateGame.isPlaying ? 'PLAYING…' : 'IDLE'}
 				style={{
 					fontFamily: 'proxima-nova',
-					fontSize: REM * 0.75,
+					fontSize: REM * 0.7,
 					fill: stateGame.isPlaying ? 0xffaa44 : 0x556677,
+					stroke: { color: 0x000000, width: 3 },
 				}}
 			/>
 		</Container>

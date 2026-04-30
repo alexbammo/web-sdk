@@ -3,7 +3,6 @@
 export const HERO_IDS = [
 	'male_warrior',
 	'male_knight',
-	'male_archer',
 	'male_thief',
 	'male_wizard',
 ] as const;
