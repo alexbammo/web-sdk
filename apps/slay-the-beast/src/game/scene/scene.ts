@@ -301,6 +301,9 @@ export class SlayTheBeastGame {
   private roundMode: string = 'base';
   /** Delay multiplier applied to this round; divides the passive score tick. */
   private roundPaceScale = 1;
+  /** Score still to be paid out gradually — see awardScoreRamped(). */
+  private rampRemaining = 0;
+  private rampPerFrame = 0;
   /** Frames since the last cosmetic callout. */
   private calloutTimer = 0;
   /** Which callout comes next — walks the table deterministically, no RNG. */
@@ -1245,6 +1248,45 @@ export class SlayTheBeastGame {
     if (roll < 0.15) return 'fly_past';        // 10% — fly past hero to the left
     if (roll < 0.30) return 'fly_forward';     // 15% — fly back the way they came (right), arc up over others
     return 'fly_back';                          // 70% — fly backward into background
+  }
+
+  /**
+   * Award score gradually instead of in one jump.
+   *
+   * Fodder waves already climb continuously because enemies die one at a time,
+   * but single large awards landed as one lump and then the counter sat frozen
+   * for seconds. A visibly climbing number is what makes a gap read as progress
+   * rather than dead air. The book total is preserved exactly — this changes
+   * only WHEN the number arrives, never how much.
+   */
+  private awardScoreRamped(amount: number, overFrames: number) {
+    if (amount <= 0) return;
+    if (overFrames <= 1) {
+      this.multiplier = Math.round((this.multiplier + amount) * 10) / 10;
+      this.callbacks.onMultiplierChange(this.multiplier);
+      return;
+    }
+    this.rampRemaining += amount;
+    this.rampPerFrame = this.rampRemaining / overFrames;
+  }
+
+  private updateScoreRamp(dt: number) {
+    if (this.rampRemaining <= 0) return;
+    const step = Math.min(this.rampRemaining, this.rampPerFrame * dt);
+    this.rampRemaining -= step;
+    const next = Math.round((this.multiplier + step) * 10) / 10;
+    if (next !== this.multiplier) {
+      this.multiplier = next;
+      this.callbacks.onMultiplierChange(this.multiplier);
+    }
+  }
+
+  /** Pay out any un-ramped remainder immediately — the book total must not drift. */
+  private flushScoreRamp() {
+    if (this.rampRemaining <= 0) return;
+    this.multiplier = Math.round((this.multiplier + this.rampRemaining) * 10) / 10;
+    this.rampRemaining = 0;
+    this.callbacks.onMultiplierChange(this.multiplier);
   }
 
   private killEnemy(enemy: Enemy, killValue: number) {
@@ -2912,6 +2954,8 @@ export class SlayTheBeastGame {
     // ~0.7) opens the NEXT round with the camera still shaking for ~1.2s.
     this.trauma = 0;
     this.shakeClock = 0;
+    this.rampRemaining = 0;
+    this.rampPerFrame = 0;
     this.resetDragonSnatch();
     this.calloutTimer = 0;
     this.calloutIndex = 0;
@@ -3136,6 +3180,8 @@ export class SlayTheBeastGame {
   }
 
   private endRound(_callerHint: boolean = true) {
+    // Any score still mid-ramp must land before the result is read.
+    this.flushScoreRamp();
     this.playing = false;
     this.isKilling = false;
     this.chaosGlowActive = false;
@@ -3591,6 +3637,7 @@ export class SlayTheBeastGame {
     this.updatePotionComboLabel(dt);
     this.updateSkyClouds(dt);
     this.updateParallax();
+    this.updateScoreRamp(dt);
     this.updateCallouts(dt);
     this.updateDragonSnatch(dt);
     this.maybeSpawnBird(dt);
@@ -4284,8 +4331,7 @@ export class SlayTheBeastGame {
 
       case 'lightning_mode': {
         const gain = event.scoreGain ?? 0;
-        this.multiplier += gain;
-        this.callbacks.onMultiplierChange(this.multiplier);
+        this.awardScoreRamped(gain, event.delay);
         this.spawnBanner('LIGHTNING MODE', 0xEAEAFF, 44, 80);
         this.triggerShake(6, 14);
         this.callbacks.onFlashScreen('rgba(220, 230, 255, 0.45)');

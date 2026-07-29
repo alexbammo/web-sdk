@@ -162,13 +162,20 @@ export function bookToDemoEvents(book: Book): AdaptedRound {
 
       case 'quietBeat': {
         // durationMs → frames at 60fps. Min 30 frames to avoid stuttery beats.
-        const f = Math.max(14, Math.round((e.durationMs ?? 500) / 16.67));
+        // CAPPED. quietBeat is the only event that puts nothing on screen, and
+        // the book's durationMs runs 400-1200ms — which the round stretch then
+        // multiplies into 1.2-3.6s of literal void. Measured, this was the whole
+        // source of the gap tail (a quarter of all gaps exceeded 3s). A breath
+        // is fine; a void is not. Capped at 24 frames pre-stretch.
+        const f = Math.min(24, Math.max(8, Math.round((e.durationMs ?? 500) / 16.67)));
         out.push({ type: 'quiet', delay: f });
         break;
       }
 
       case 'speedChange':
-        out.push({ type: 'speed_change', delay: 10, speedTier: e.tier });
+        // Also invisible — a scroll-speed change reads through the world, not as
+        // a beat. Keep it short for the same reason quietBeat is capped.
+        out.push({ type: 'speed_change', delay: 6, speedTier: e.tier });
         break;
 
       case 'fodderWave': {
