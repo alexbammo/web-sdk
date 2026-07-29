@@ -4364,10 +4364,15 @@ export class SlayTheBeastGame {
         // carried by the math model rather than a renderer substitution on
         // `spontaneous_combustion`.
         const useSnatch = event.killerId === 'dragon_snatch';
-        console.log(
-          `[death] ambush killerId=${event.killerId} seed=${this.roundSeed} ` +
-            `→ ${useSnatch ? 'dragon_snatch' : event.killerId === 'banana_peel' ? 'banana' : 'combust'}`,
-        );
+        // Gated behind ?trace. Reviewers check the console for leaked game-state
+        // information, and this fired ungated on ~40% of base rounds, naming the
+        // killer and the round seed.
+        if (TRACE_EVENTS) {
+          console.log(
+            `[death] ambush killerId=${event.killerId} seed=${this.roundSeed} ` +
+              `→ ${useSnatch ? 'dragon_snatch' : event.killerId === 'banana_peel' ? 'banana' : 'combust'}`,
+          );
+        }
 
         if (useSnatch) {
           this.startDragonSnatch();

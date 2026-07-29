@@ -3,7 +3,14 @@
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.svg" />
-		<link rel="stylesheet" href="https://use.typekit.net/aba0ebl.css" />
+		<!--
+			NO EXTERNAL RESOURCE REQUESTS. The build must be fully self-contained —
+			Stake's XSS policy names "downloading a font from an external server" as
+			a specific approval failure, and this Typekit stylesheet was still present
+			in the produced artefact. Fonts must be bundled and served from the CDN
+			alongside the build. Do not reintroduce a remote stylesheet, script or
+			font host here.
+		-->
 		<meta name="viewport" content="width=device-width" />
 		%sveltekit.head%
 	</head>
