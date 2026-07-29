@@ -74,9 +74,16 @@ export const LIGHTNING_OUTCOMES = ['penalty', 'lightning_mode'] as const;
 export type LightningOutcome = (typeof LIGHTNING_OUTCOMES)[number];
 
 // Ambush flavours — instant run-enders that aren't a boss encounter.
-// v1 ships with two: a no-warning sprite-shatter pop, and the comedic banana
-// slip. Pacing is implicit per flavour; there is no separate style axis.
-export const AMBUSH_KILLER_IDS = ['spontaneous_combustion', 'banana_peel'] as const;
+// v1 ships with three: a no-warning sprite-shatter pop, the comedic banana
+// slip, and a dragon stooping out of the sky to carry the hero off. Pacing is
+// implicit per flavour; there is no separate style axis.
+//
+// `dragon_snatch` added 2026-07-29. The renderer had been staging the snatch on
+// `spontaneous_combustion`, so the book said the hero combusted while the
+// screen showed him abducted — a book/render mismatch in a submission where
+// replay fidelity is reviewed. This is a new value inside an existing variant;
+// the 15-variant union is unchanged.
+export const AMBUSH_KILLER_IDS = ['spontaneous_combustion', 'banana_peel', 'dragon_snatch'] as const;
 export type AmbushKillerId = (typeof AMBUSH_KILLER_IDS)[number];
 
 // Round outcome.

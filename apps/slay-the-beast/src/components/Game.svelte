@@ -1,17 +1,17 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-	import { App, Text, Container, Rectangle, REM } from 'pixi-svelte';
+	import { App } from 'pixi-svelte';
 	import { MainContainer } from 'components-layout';
 
 	import { getContext } from '../game/context';
 	import { stateGame } from '../game/stateGame.svelte';
-	import { playBook } from '../game/utils';
 	import { pickBook } from '../game/bookSource';
 	import { BET_MODES, type BetMode } from '../game/types';
-	import Scene from './Scene.svelte';
+	import { bookToDemoEvents } from '../game/bookEventAdapterPorted';
+	import SceneHost from './SceneHost.svelte';
 
 	const context = getContext();
 
+	let sceneHost = $state<SceneHost | undefined>();
 	let resultOverlay: { payoutMultiplier: number; result: 'win' | 'loss' } | null = $state(null);
 
 	context.eventEmitter.subscribeOnMount({
@@ -31,111 +31,28 @@
 
 	let activeMode = $state<BetMode>('base');
 
-	const handleSpin = async () => {
+	const handleSpin = () => {
 		if (stateGame.isPlaying) return;
-		const book = pickBook(activeMode);
-		await playBook(book);
-	};
+		const scene = sceneHost?.getScene();
+		if (!scene) return;
 
-	onMount(() => {
-		// Greet the dispatcher once on mount so context is fully wired before the
-		// first SPIN. Cheap. Intentionally not loading any books here.
-	});
+		resultOverlay = null;
+		const book = pickBook(activeMode);
+		// Same adapter the prototype uses. Kept as a straight port so the two
+		// surfaces cannot drift while the prototype remains the iteration harness.
+		const adapted = bookToDemoEvents(book as never);
+		stateGame.mode = adapted.mode;
+		stateGame.heroId = adapted.hero as never;
+		stateGame.lastPayout = book.payoutMultiplier;
+		scene.playRealBook(adapted.events, adapted.hero, adapted.mode, book.id, adapted.paceScale);
+	};
 </script>
 
 <App>
 	<MainContainer>
-		<!-- Gameplay scene (background + hero + actors + floaters + flash overlay).
-		     Renders behind the HUD; AssetsLoader gates this until sprites preload. -->
-		<Scene />
-
-		<!-- HUD: title strip at top, big score readout, status under it. -->
-		<Container x={270} y={32}>
-			<Text
-				anchor={{ x: 0.5, y: 0 }}
-				text="SLAY THE BEAST"
-				style={{
-					fontFamily: 'proxima-nova',
-					fontSize: REM * 1.5,
-					fontWeight: '800',
-					fill: 0xffcc44,
-					stroke: { color: 0x000000, width: 4 },
-				}}
-			/>
-		</Container>
-
-		<Container x={270} y={72}>
-			<Text
-				anchor={{ x: 0.5, y: 0 }}
-				text={`${stateGame.mode.toUpperCase()}  ·  ${stateGame.heroId}  ·  ${stateGame.biomeId}`}
-				style={{
-					fontFamily: 'proxima-nova',
-					fontSize: REM * 0.7,
-					fill: 0xddeeff,
-					stroke: { color: 0x000000, width: 3 },
-				}}
-			/>
-		</Container>
-
-		<Container x={270} y={130}>
-			<Text
-				anchor={{ x: 0.5, y: 0.5 }}
-				text={`$${stateGame.cumulativeScore.toFixed(2)}`}
-				style={{
-					fontFamily: 'proxima-nova',
-					fontSize: REM * 2.6,
-					fontWeight: '800',
-					fill: stateGame.isPlaying ? 0xffffff : 0x88aabb,
-					stroke: { color: 0x000000, width: 4 },
-				}}
-			/>
-		</Container>
-
-		<Container x={270} y={172}>
-			<Text
-				anchor={{ x: 0.5, y: 0 }}
-				text={stateGame.isPlaying ? 'PLAYING…' : 'IDLE'}
-				style={{
-					fontFamily: 'proxima-nova',
-					fontSize: REM * 0.7,
-					fill: stateGame.isPlaying ? 0xffaa44 : 0x556677,
-					stroke: { color: 0x000000, width: 3 },
-				}}
-			/>
-		</Container>
-
-		{#if resultOverlay}
-			<Rectangle
-				width={540}
-				height={960}
-				anchor={{ x: 0, y: 0 }}
-				color={resultOverlay.result === 'win' ? 0x114422 : 0x441122}
-				alpha={0.85}
-			/>
-			<Container x={270} y={420}>
-				<Text
-					anchor={{ x: 0.5, y: 0.5 }}
-					text={resultOverlay.result === 'win' ? 'VICTORY' : 'SLAIN'}
-					style={{
-						fontFamily: 'proxima-nova',
-						fontSize: REM * 3.5,
-						fontWeight: '900',
-						fill: resultOverlay.result === 'win' ? 0xffcc44 : 0xff5566,
-					}}
-				/>
-			</Container>
-			<Container x={270} y={520}>
-				<Text
-					anchor={{ x: 0.5, y: 0.5 }}
-					text={`PAYOUT: ${resultOverlay.payoutMultiplier.toFixed(2)}×`}
-					style={{
-						fontFamily: 'proxima-nova',
-						fontSize: REM * 1.5,
-						fill: 0xffffff,
-					}}
-				/>
-			</Container>
-		{/if}
+		<!-- The ported scene attaches to this Application's stage directly, so
+		     pixi-svelte keeps ownership of layout, reflow and asset loading. -->
+		<SceneHost bind:this={sceneHost} />
 	</MainContainer>
 </App>
 
@@ -148,6 +65,10 @@
 	<button onclick={handleSpin} disabled={stateGame.isPlaying}>
 		{stateGame.isPlaying ? 'PLAYING…' : 'SPIN'}
 	</button>
+	<span class="score">${stateGame.cumulativeScore.toFixed(1)}</span>
+	{#if resultOverlay}
+		<span class="payout">{resultOverlay.payoutMultiplier.toFixed(2)}×</span>
+	{/if}
 </div>
 
 <style>
@@ -186,5 +107,12 @@
 	select:disabled {
 		opacity: 0.5;
 		cursor: not-allowed;
+	}
+	.score {
+		font-weight: 800;
+		color: #ffcc44;
+	}
+	.payout {
+		color: #88ddff;
 	}
 </style>

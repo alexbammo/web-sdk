@@ -1,0 +1,2 @@
+Animated tileses play on ping-pong mode (0-1-2-1)
+Animated waterfalls play normally (0-1-2)

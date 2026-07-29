@@ -203,6 +203,11 @@ type BookEventFinalBossFight = {
  * Pacing is implicit per `killerId`:
  *  - 'spontaneous_combustion' — no-warning ~1.5s sprite-shatter pop.
  *  - 'banana_peel' — ~1.5s comedic slip.
+ *  - 'dragon_snatch' — ~1.8s: telegraph (ground shadow blooms, sky darkens,
+ *    hero looks up), linear dive, hit-stop grab, accelerating ascent, then a
+ *    hold on the empty arena as the hero's helmet falls. Longer and more
+ *    signposted than the other two on purpose: in a no-input game the player
+ *    can never be at fault, so legibility carries the whole fairness burden.
  */
 type BookEventAmbushDeath = {
 	index: number;
