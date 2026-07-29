@@ -617,31 +617,38 @@ export class SlayTheBeastGame {
   private buildParallaxLayers() {
     const T = GAME_WIDTH;
 
+    // NOTE ON SEAMS: content must stay inside [rx, T - rx] or it bleeds past the
+    // tile edge, where the second copy overdraws it — with alpha < 1 that shows
+    // as a darker vertical band scrolling past once per tile.
+    const clamp = (x: number, rx: number) => Math.max(rx, Math.min(T - rx, x));
+
     // Far ridge — slowest, most washed out. Sits above the horizon haze.
     this.makeParallaxLayer((g) => {
+      const rx = 74;
       for (let i = 0; i < 7; i++) {
-        const x = 20 + i * 82;
-        g.ellipse(x, GROUND_Y - 150, 74, 44 + Math.sin(i * 1.3) * 16);
+        g.ellipse(clamp(28 + i * 78, rx), GROUND_Y - 150, rx, 44 + Math.sin(i * 1.3) * 16);
       }
       g.fill({ color: 0x24461a, alpha: 0.30 });
     }, T, 0.12);
 
     // Mid treeline — reads as a band of foliage tops.
     this.makeParallaxLayer((g) => {
+      const rx = 44;
       for (let i = 0; i < 9; i++) {
-        const x = 10 + i * 64;
         const h = 34 + Math.sin(i * 2.1) * 12;
-        g.ellipse(x, GROUND_Y - 96, 44, h);
+        g.ellipse(clamp(46 + i * 56, rx), GROUND_Y - 96, rx, h);
       }
       g.fill({ color: 0x2f6322, alpha: 0.55 });
     }, T, 0.32);
 
-    // Near shrubs — sit just behind the hero's lane, clearly readable motion.
+    // Near shrubs. Raised well clear of the hero's foot line — at GROUND_Y - 44
+    // they read as being IN his lane rather than behind him.
     this.makeParallaxLayer((g) => {
+      const rx = 30;
       for (let i = 0; i < 6; i++) {
-        const x = 44 + i * 96;
-        g.ellipse(x, GROUND_Y - 44, 30, 22);
-        g.ellipse(x + 20, GROUND_Y - 36, 20, 15);
+        const x = clamp(48 + i * 92, rx + 20);
+        g.ellipse(x, GROUND_Y - 96, rx, 22);
+        g.ellipse(x + 20, GROUND_Y - 88, 20, 15);
       }
       g.fill({ color: 0x3c7a28, alpha: 0.85 });
     }, T, 0.68);
