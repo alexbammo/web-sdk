@@ -1,5 +1,7 @@
 import { createPlayBookUtils } from 'utils-book';
+import { stateBet } from 'state-shared';
 
+import { eventEmitter } from './eventEmitter';
 import { bookEventHandlerMap } from './bookEventHandlerMap';
 import { validateBook } from './validateBook';
 import type { Bet } from './typesBookEvent';
@@ -19,4 +21,14 @@ export const playBook = async (book: MockBook | Bet) => {
 			'payoutMultiplier' in book ? book.payoutMultiplier : (book as Bet).payoutMultiplier,
 	});
 	await playBookEvents(events);
+};
+
+/**
+ * Play a bet returned by the RGS. Distinct from playBook(), which takes a local
+ * book — this is the path a real spin travels.
+ */
+export const playBet = async (bet: Bet) => {
+	stateBet.winBookEventAmount = 0;
+	await playBookEvents(bet.state);
+	eventEmitter.broadcast({ type: 'stopButtonEnable' });
 };
