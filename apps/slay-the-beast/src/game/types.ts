@@ -97,3 +97,24 @@ export type RoundResult = 'win' | 'loss';
 
 export const BET_MODES = ['base', 'ante', 'chaos'] as const;
 export type BetMode = (typeof BET_MODES)[number];
+
+/**
+ * Cost of each mode as a multiple of the base bet.
+ *
+ * Shared rather than redeclared per component: it drives the mandatory
+ * confirmation gate (any mode over 2x base needs one — which catches both ANTE
+ * and CHAOS), the replay gate's cost label, and the resolved-cost display in
+ * the bet menu. Three copies of this number is three chances to disagree with
+ * the math model.
+ */
+export const MODE_COST: Record<BetMode, number> = {
+	base: 1,
+	ante: 5,
+	chaos: 100,
+};
+
+export const MODE_LABEL: Record<BetMode, string> = {
+	base: 'BASE',
+	ante: 'ANTE',
+	chaos: 'CHAOS',
+};

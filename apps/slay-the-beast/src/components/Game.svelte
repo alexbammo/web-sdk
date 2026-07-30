@@ -6,14 +6,23 @@
 	import { UI } from 'components-ui-pixi';
 	import { Modals } from 'components-ui-html';
 
+	import { stateUi } from 'state-shared';
+
 	import { getContext } from '../game/context';
 	import SceneHost from './SceneHost.svelte';
 	import EnableGameActor from './EnableGameActor.svelte';
 	import ResumeBet from './ResumeBet.svelte';
+	import ReplayGate from './ReplayGate.svelte';
 
 	const context = getContext();
 
 	let sceneHost = $state<SceneHost | undefined>();
+
+	/**
+	 * Replay mode must make a transition into real play impossible — not merely
+	 * hidden. Authenticate sets this when it sees `replay=true`.
+	 */
+	const isReplay = $derived(stateUi.config.mode === 'replay');
 
 	context.eventEmitter.subscribeOnMount({
 		// The SDK's bonus cards broadcast this; routing it to the confirm modal is
@@ -27,8 +36,15 @@
 
 <App>
 	<EnableGameActor />
-	<EnableHotkey />
-	<ResumeBet />
+	<!--
+		Replay blocks every route into a real bet: no hotkeys (so spacebar cannot
+		place one) and no ResumeBet auto-start — the ReplayGate drives playback
+		explicitly instead, behind its Start Replay button.
+	-->
+	{#if !isReplay}
+		<EnableHotkey />
+		<ResumeBet />
+	{/if}
 
 	<MainContainer>
 		<!-- The ported scene attaches to this Application's stage directly, so
@@ -47,3 +63,7 @@
 
 <!-- Settings / bet menu / autoplay / buy-bonus / buy-bonus-confirm / error. -->
 <Modals />
+
+{#if isReplay}
+	<ReplayGate />
+{/if}
