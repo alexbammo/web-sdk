@@ -10,10 +10,22 @@ import {
   Assets,
 } from 'pixi.js';
 import { FRAME_SIZE, SHEET_COLS, ANIM_ROWS } from './spriteData';
+// GOLD is stake-relative at a fixed rate, so the ceremony tier can be derived
+// straight from the on-screen number without knowing the bet.
+import { GOLD_PER_STAKE } from '../bookEventAdapterPorted';
 
 // ─── Constants ───────────────────────────────────────────────────────
 const GAME_WIDTH = 540;
 const GAME_HEIGHT = 960;
+
+/**
+ * Stake multiple at which a round earns the big-win ceremony.
+ *
+ * Deliberately uncommon. Measured over the shipped libraries roughly 1% of base
+ * rounds reach 15x, which is about right — the celebration only reads as an
+ * event if most rounds do not get one.
+ */
+const BIG_WIN_THRESHOLD = 15;
 const GROUND_Y = 720;
 const HERO_SCALE = 0.6075;
 const ENEMY_SCALE = 0.45;
@@ -1929,6 +1941,233 @@ export class SlayTheBeastGame {
     }
   }
 
+  // ─── Big-win ceremony ───────────────────────────────────────
+  /**
+   * The celebration. Reviewers watch this deliberately, three times, through
+   * the replay feature — it is the single highest-scoring thing in the game.
+   *
+   * Beat sheet (frames @60). Everything escalates; nothing turns off once on,
+   * because monotonic escalation is what makes a build legible.
+   *
+   *     0- 30  IGNITE    world dims, hero launches to centre, first fireworks
+   *    30-110  SPIN UP   world rotation and zoom ramp in, flip-crowd spawns
+   *   110-150  SHATTER   the number cracks apart into its own pixels
+   *   150-200  REFORM    the pieces fly back and the number lands whole
+   *   200-260  SETTLE    rotation unwinds, hero returns, fireworks thin out
+   *
+   * The world rotates about its centre for free: the container was already
+   * pivoted there for the trauma shake. Rotating a rectangle exposes its
+   * corners, so the world scales up while it turns — SPIN_ZOOM is sized to
+   * cover the diagonal rather than chosen by eye.
+   */
+  private static readonly BW_IGNITE = 30;
+  private static readonly BW_SPINUP = 110;
+  private static readonly BW_SHATTER = 150;
+  private static readonly BW_REFORM = 200;
+  private static readonly BW_TOTAL = 260;
+  /** Covers the corners a rotating rectangle would otherwise expose. */
+  private static readonly BW_SPIN_ZOOM = 1.28;
+
+  private bigWinActive = false;
+  private bigWinTimer = 0;
+  private bigWinIntensity = 0;
+  private bigWinLabel?: Text;
+  private bigWinFlippers: Array<{ e: AnimatedEntity; vx: number; vy: number; spin: number }> = [];
+  private bigWinFireTimer = 0;
+
+  private startBigWin(stakeMultiple: number) {
+    this.bigWinActive = true;
+    this.bigWinTimer = 0;
+    this.bigWinFireTimer = 0;
+    // 15x -> 0, 500x+ -> 1. Everything downstream scales off this, so a 20x win
+    // is recognisably the same ceremony as a 400x win, just quieter.
+    this.bigWinIntensity = Math.min(1, Math.log10(stakeMultiple / BIG_WIN_THRESHOLD) / Math.log10(33));
+
+    this.setAnimation(this.heroEntity, 'front_idle');
+
+    const style = new TextStyle({
+      fontFamily: 'Arial Black, Arial, sans-serif',
+      fontSize: 84,
+      fill: 0xFFD54A,
+      stroke: { color: 0x2A1B00, width: 10 },
+    });
+    const label = new Text({ text: `${stakeMultiple.toFixed(2)}×`, style });
+    label.anchor.set(0.5);
+    label.x = GAME_WIDTH / 2;
+    label.y = GAME_HEIGHT * 0.42;
+    this.uiContainer.addChild(label);
+    this.bigWinLabel = label;
+
+    this.spawnBanner('BIG WIN', 0xFFE7A0, 54, SlayTheBeastGame.BW_TOTAL);
+    this.triggerShake(14);
+  }
+
+  /** A firework: an expanding ring of sparks from a point. */
+  private spawnFirework(x: number, y: number) {
+    const palettes = [
+      [0xFFD54A, 0xFFF0B0, 0xFFFFFF],
+      [0xFF6BA5, 0xFFC2DA, 0xFFFFFF],
+      [0x7ADBFF, 0xCFF3FF, 0xFFFFFF],
+      [0x9CFF7A, 0xE2FFD6, 0xFFFFFF],
+    ];
+    const palette = palettes[(this.bigWinFireTimer + x) % palettes.length | 0];
+    const count = 16 + Math.round(14 * this.bigWinIntensity);
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      const speed = 2.4 + Math.random() * 2.6;
+      const g = new Graphics();
+      g.circle(0, 0, 2.5 + Math.random() * 2).fill(palette[i % palette.length]);
+      g.x = x;
+      g.y = y;
+      this.uiContainer.addChild(g);
+      this.particles.push({
+        gfx: g,
+        vx: Math.cos(a) * speed,
+        vy: Math.sin(a) * speed,
+        life: 28 + Math.random() * 18,
+        maxLife: 46,
+      } as never);
+    }
+    this.spawnImpactFlash(x, y);
+  }
+
+  /** Fodder sprites tumbling through the air, celebrating. */
+  private spawnFlipCrowd() {
+    const n = 4 + Math.round(6 * this.bigWinIntensity);
+    for (let i = 0; i < n; i++) {
+      const bank = this.enemyTextureBank[(i * 3) % this.enemyTextureBank.length];
+      if (!bank) continue;
+      const e = this.createAnimatedEntity(bank, ENEMY_SCALE * 0.9, i % 2 === 0);
+      this.setAnimation(e, 'front_idle');
+      e.container.x = 40 + Math.random() * (GAME_WIDTH - 80);
+      e.container.y = GAME_HEIGHT + 40 + Math.random() * 120;
+      this.worldContainer.addChild(e.container);
+      this.bigWinFlippers.push({
+        e,
+        vx: (Math.random() - 0.5) * 2.4,
+        vy: -(7 + Math.random() * 4),
+        spin: (Math.random() - 0.5) * 0.34,
+      });
+    }
+  }
+
+  private updateBigWin(dt: number) {
+    if (!this.bigWinActive) return;
+    const t = this.bigWinTimer;
+    this.bigWinTimer += dt;
+
+    const IGNITE = SlayTheBeastGame.BW_IGNITE;
+    const SPINUP = SlayTheBeastGame.BW_SPINUP;
+    const SHATTER = SlayTheBeastGame.BW_SHATTER;
+    const REFORM = SlayTheBeastGame.BW_REFORM;
+    const TOTAL = SlayTheBeastGame.BW_TOTAL;
+
+    // ── Fireworks, continuous, densest in the middle of the sequence ──
+    this.bigWinFireTimer -= dt;
+    if (this.bigWinFireTimer <= 0 && t < REFORM + 30) {
+      const gap = 14 - 8 * this.bigWinIntensity;
+      this.bigWinFireTimer = gap;
+      this.spawnFirework(
+        60 + Math.random() * (GAME_WIDTH - 120),
+        120 + Math.random() * (GAME_HEIGHT * 0.5),
+      );
+    }
+
+    // ── Phase 0: ignite — hero launches to centre stage ──
+    if (t < IGNITE) {
+      const k = t / IGNITE;
+      const e = 1 - Math.pow(1 - k, 3);
+      this.heroEntity.container.x = 160 + (GAME_WIDTH / 2 - 160) * e;
+      this.heroEntity.container.y = this.heroBaseY - e * 150;
+      const s = 1 + e * 0.35;
+      this.heroEntity.container.scale.set(s, s);
+      if (t - dt < 1) this.spawnFlipCrowd();
+    }
+
+    // ── Phase 1: spin up — the world turns and zooms ──
+    const spinK = Math.min(1, Math.max(0, (t - IGNITE) / (SPINUP - IGNITE)));
+    const unwindK = t > REFORM ? Math.min(1, (t - REFORM) / (TOTAL - REFORM)) : 0;
+    const spinAmt = spinK * (1 - unwindK) * this.bigWinIntensity;
+    this.worldContainer.rotation = Math.sin(this.bigWinTimer * 0.035) * 0.26 * spinAmt;
+    const zoom = 1 + (SlayTheBeastGame.BW_SPIN_ZOOM - 1) * spinAmt;
+    this.worldContainer.scale.set(zoom, zoom);
+
+    // Hero orbits the centre while the world turns.
+    if (t >= IGNITE && t < REFORM) {
+      const orbit = (t - IGNITE) * 0.045;
+      const radius = 120 + 40 * this.bigWinIntensity;
+      this.heroEntity.container.x = GAME_WIDTH / 2 + Math.cos(orbit) * radius;
+      this.heroEntity.container.y = this.heroBaseY - 150 + Math.sin(orbit * 1.4) * 70;
+      this.heroEntity.container.rotation = Math.sin(orbit) * 0.3;
+    }
+
+    // ── Phase 2: shatter — the number cracks into its own pixels ──
+    if (t >= SPINUP && t - dt < SPINUP && this.bigWinLabel) {
+      this.spawnSpriteShatter(this.bigWinLabel, {
+        flavour: 'combust',
+        palette: [0xFFD54A, 0xFFF0B0, 0xFFFFFF],
+      } as never);
+      this.bigWinLabel.visible = false;
+      this.triggerShake(22);
+      this.callbacks.onFlashScreen('rgba(255, 236, 170, 0.5)');
+    }
+
+    // ── Phase 3: reform — it lands whole again, bigger ──
+    if (t >= SHATTER && t - dt < SHATTER && this.bigWinLabel) {
+      this.bigWinLabel.visible = true;
+      this.bigWinLabel.scale.set(0.2, 0.2);
+      this.triggerShake(18);
+    }
+    if (t >= SHATTER && t < REFORM && this.bigWinLabel) {
+      const k = (t - SHATTER) / (REFORM - SHATTER);
+      // Overshoot then settle — the number arrives with weight.
+      const s = k < 0.7 ? 0.2 + (k / 0.7) * 1.15 : 1.35 - ((k - 0.7) / 0.3) * 0.35;
+      this.bigWinLabel.scale.set(s, s);
+      this.bigWinLabel.rotation = (1 - k) * 0.4 * Math.sin(k * 12);
+    }
+    if (t >= REFORM && this.bigWinLabel) {
+      this.bigWinLabel.scale.set(1, 1);
+      this.bigWinLabel.rotation = 0;
+      if (t > TOTAL - 30) this.bigWinLabel.alpha = Math.max(0, (TOTAL - t) / 30);
+    }
+
+    // ── Flip crowd ──
+    for (let i = this.bigWinFlippers.length - 1; i >= 0; i--) {
+      const f = this.bigWinFlippers[i];
+      f.vy += 0.22 * dt;
+      f.e.container.x += f.vx * dt;
+      f.e.container.y += f.vy * dt;
+      f.e.container.rotation += f.spin * dt;
+      if (f.e.container.y > GAME_HEIGHT + 200) {
+        f.e.container.parent?.removeChild(f.e.container);
+        this.bigWinFlippers.splice(i, 1);
+      }
+    }
+    if (t > IGNITE && t < REFORM && this.bigWinFlippers.length < 3) this.spawnFlipCrowd();
+
+    // ── Phase 4: settle, then hand over to the result overlay ──
+    if (t >= TOTAL) {
+      this.endBigWin();
+    }
+  }
+
+  private endBigWin() {
+    this.bigWinActive = false;
+    this.worldContainer.rotation = 0;
+    this.worldContainer.scale.set(1, 1);
+    this.heroEntity.container.rotation = 0;
+    this.heroEntity.container.scale.set(1, 1);
+    this.heroEntity.container.x = 160;
+    this.heroEntity.container.y = this.heroBaseY;
+    if (this.bigWinLabel) {
+      this.bigWinLabel.parent?.removeChild(this.bigWinLabel);
+      this.bigWinLabel = undefined;
+    }
+    for (const f of this.bigWinFlippers) f.e.container.parent?.removeChild(f.e.container);
+    this.bigWinFlippers = [];
+    this.finishRound();
+  }
+
   // ─── Cosmetic callouts ──────────────────────────────────────
   // Drop the Boss fires a named micro-beat (BACK FLIP! / FRONT FLIP!) roughly
   // every 4 seconds for the entire fall. They are purely cosmetic — they name
@@ -3196,6 +3435,21 @@ export class SlayTheBeastGame {
     this.chaosDarkOverlay.visible = false;
     this.heroEntity.container.y = this.heroBaseY;
     this.setAnimation(this.heroEntity, 'front_idle');
+
+    // A big win earns a celebration BEFORE the result overlay, not after —
+    // the overlay ends the round, and ending it before the spectacle would
+    // bury the spectacle. The result callbacks are deferred until the
+    // ceremony finishes.
+    const stakeMultiple = this.multiplier / GOLD_PER_STAKE;
+    if (stakeMultiple >= BIG_WIN_THRESHOLD) {
+      this.startBigWin(stakeMultiple);
+      return;
+    }
+    this.finishRound();
+  }
+
+  /** Hands the result to the UI. Split out so the big-win ceremony can defer it. */
+  private finishRound() {
     this.callbacks.onStateChange('result');
     const won = this.multiplier > 0;
     this.callbacks.onResultData({ multiplier: this.multiplier, kills: this.killCount, won, heroDied: this.heroDied });
@@ -3645,6 +3899,7 @@ export class SlayTheBeastGame {
     this.updateSkyClouds(dt);
     this.updateParallax();
     this.updateScoreRamp(dt);
+    this.updateBigWin(dt);
     this.updateCallouts(dt);
     this.updateDragonSnatch(dt);
     this.maybeSpawnBird(dt);
