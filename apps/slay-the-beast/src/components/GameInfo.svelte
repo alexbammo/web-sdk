@@ -63,7 +63,8 @@
 					</tbody>
 				</table>
 				<p class="example">
-					Worked example: a run banking 3,240 GOLD at a 1.00 bet pays 4.60× — a win of 4.60.
+					Worked example: a run ending on 4,600 GOLD pays 4.60× your bet. At a 1.00 bet that
+					is a win of 4.60; at a 5.00 bet, 23.00. The GOLD is the same either way.
 				</p>
 			{:else if tab === 'MODES'}
 				{#each rows as r (r.mode)}

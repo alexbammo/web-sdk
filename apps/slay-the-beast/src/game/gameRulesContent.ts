@@ -41,15 +41,16 @@ export const RULES_SECTIONS: Array<{ heading: string; body: string[] }> = [
 	{
 		heading: 'GOLD and your win',
 		body: [
-			'GOLD is the score your hero collects during a run. It is shown at a large display scale so it reads clearly on screen.',
-			'Your actual win is presented as a multiplier of your bet at the end of every run. The multiplier and the cash figure shown at the end of the run are the real payout.',
+			'GOLD is what your hero collects during a run.',
+			'1,000 GOLD returns your bet. Everything above that is profit — so a run ending on 4,600 GOLD pays 4.60× your bet.',
+			'GOLD does not change with your bet size. You collect the same amount at any stake; only the cash figure at the end scales with what you staked.',
+			'A run pays only if it banks at least the value of your bet. Below 1,000 GOLD, the run pays nothing — this game never pays back less than you staked.',
 		],
 	},
 	{
 		heading: 'If your hero falls',
 		body: [
 			'A run that ends in death is not automatically a loss. Whatever GOLD was collected up to that moment is banked and paid.',
-			'A run pays only if it banks at least the value of your stake. Below that, the run pays nothing — this game never pays back less than you staked.',
 		],
 	},
 	{

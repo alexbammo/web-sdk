@@ -2,10 +2,8 @@
 // internal DemoEvent[] queue, plus a captured payout for the result overlay.
 //
 // Math-sdk emits scaled deltas tuned to land at 96% RTP per mode (e.g. fodder
-// 0.0012 per kill in base, 0.02 for a big enemy). The prototype displays
-// chunky $-amounts in tens-to-hundreds. We multiply by `DISPLAY_SCALE` to make
-// on-screen numbers feel slot-like; RTP is preserved because everything scales
-// uniformly and `chest.multiplier` is literal regardless of scale.
+// 0.0012 per kill in base, 0.02 for a big enemy). Those are unreadable on
+// screen, so they are scaled up into GOLD — see GOLD_PER_STAKE.
 //
 // Frame-based delays: prototype's `currentEventTimer` decrements by `dt`
 // (frames at 60fps). 60 frames ≈ 1s. We pick per-variant frame budgets that
@@ -55,10 +53,50 @@ export type DemoEvent = {
   killerId?: 'spontaneous_combustion' | 'banana_peel' | 'dragon_snatch';
 };
 
-export const DISPLAY_SCALE = 10000;
+/**
+ * GOLD awarded for a round that returns exactly the player's stake.
+ *
+ * This is the whole clarity fix. Previously the on-screen score was the book's
+ * raw value times a flat 10,000, which made the relationship between the number
+ * the player watched and the number they were paid ARBITRARY — 3,240 on screen
+ * became 4.60x for reasons nobody could derive. Any name on that number
+ * inherits the problem; the fix is a stated, fixed rate.
+ *
+ * Now: 1,000 GOLD = 1x your bet. A round returning 4.6x shows 4,600 GOLD. The
+ * conversion at round end is arithmetic the player can follow rather than a
+ * magic transform, and it prints in the paytable as one line.
+ *
+ * GOLD is deliberately STAKE-RELATIVE, so 1,000 means "your money back"
+ * identically in base, ante and chaos — the modes stay directly comparable on
+ * screen even though they cost 1x, 5x and 100x. It is also bet-independent:
+ * you collect the same GOLD at any stake, and only the final cash step scales.
+ *
+ * 1,000 also gives the run a visible break-even mark, which is a genuinely
+ * useful tension line in a game where most rounds end in death.
+ */
+export const GOLD_PER_STAKE = 1000;
+
+/** Cost of each mode as a multiple of the base bet. Mirrors the math model. */
+const MODE_COST: Record<'base' | 'ante' | 'chaos', number> = {
+  base: 1,
+  ante: 5,
+  chaos: 100,
+};
 
 // Round to a whole-dollar feel for floaters/HUD.
-const dollarise = (raw: number): number => Math.max(0, Math.round(raw * DISPLAY_SCALE));
+/**
+ * Raw book value -> GOLD, for a given mode.
+ *
+ * The book's payoutMultiplier is expressed in BASE units, so dividing by the
+ * mode's cost converts it to a stake-relative multiple before scaling. That is
+ * what keeps 1,000 GOLD meaning "your stake back" in every mode: in chaos each
+ * raw unit is worth a hundredth of the GOLD it is worth in base, because a
+ * chaos stake is a hundred times larger.
+ */
+const makeGold =
+  (mode: 'base' | 'ante' | 'chaos') =>
+  (raw: number): number =>
+    Math.max(0, Math.round((raw * GOLD_PER_STAKE) / (MODE_COST[mode] ?? 1)));
 
 export type AdaptedRound = {
   hero: string;
@@ -146,6 +184,11 @@ export function bookToDemoEvents(book: Book): AdaptedRound {
   if (last?.type !== 'roundEnd') {
     throw new Error(`bookEventAdapter: last event must be roundEnd, got ${last?.type}`);
   }
+
+  // Per-round GOLD scaler. Shadows the module-level helper deliberately so every
+  // dollarise() call below converts at this mode's rate without threading the
+  // mode through each one.
+  const dollarise = makeGold(init.mode);
 
   const out: DemoEvent[] = [];
 
