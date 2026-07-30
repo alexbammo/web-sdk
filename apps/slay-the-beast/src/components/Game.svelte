@@ -13,10 +13,13 @@
 	import EnableGameActor from './EnableGameActor.svelte';
 	import ResumeBet from './ResumeBet.svelte';
 	import ReplayGate from './ReplayGate.svelte';
+	import GameInfo from './GameInfo.svelte';
 
 	const context = getContext();
 
 	let sceneHost = $state<SceneHost | undefined>();
+	/** Rules / paytable / modes / legal. Must be reachable in-game at all times. */
+	let showInfo = $state(false);
 
 	/**
 	 * Replay mode must make a transition into real play impossible — not merely
@@ -67,3 +70,38 @@
 {#if isReplay}
 	<ReplayGate />
 {/if}
+
+<!--
+	Always-reachable info affordance. The disclaimer must sit behind an `i`
+	button and a submission without one is not approved, so this is mounted
+	outside the modal stack rather than depending on the SDK's menu being open.
+-->
+<button class="info-button" onclick={() => (showInfo = true)} aria-label="Game rules and information">
+	i
+</button>
+
+{#if showInfo}
+	<GameInfo onclose={() => (showInfo = false)} />
+{/if}
+
+<style>
+	.info-button {
+		position: fixed;
+		top: 12px;
+		right: 12px;
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		border: 1px solid #8b761c;
+		background: rgba(20, 20, 0, 0.75);
+		color: #e8cb52;
+		font-family: ui-serif, Georgia, serif;
+		font-size: 1rem;
+		font-style: italic;
+		cursor: pointer;
+		z-index: 140;
+	}
+	.info-button:hover {
+		background: #313000;
+	}
+</style>
