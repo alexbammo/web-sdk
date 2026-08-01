@@ -1,0 +1,18 @@
+{
+  "name": "ad-remake",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude Skill + MCP server that remakes a video ad from a reference and a brief.",
+  "bin": {
+    "ad-remake-mcp": "src/mcp-server.js"
+  },
+  "scripts": {
+    "mcp": "node src/mcp-server.js",
+    "demo": "node test/demo.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
