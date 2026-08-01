@@ -1,0 +1,11 @@
+{
+  "name": "adpipe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude-driven ad-creative pipeline: research -> static ads -> video ads -> Meta Ads (mock-first, real adapters behind env keys)",
+  "bin": { "adpipe": "src/cli.mjs" },
+  "scripts": {
+    "demo": "node src/cli.mjs run examples/product.json"
+  }
+}

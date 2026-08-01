@@ -1,0 +1,8 @@
+{
+  "name": "BrewPod",
+  "category": "cold brew coffee maker",
+  "description": "makes barista-grade cold brew at home in 5 minutes, no bitterness, no waste",
+  "price": 79,
+  "url": "https://example.com/brewpod",
+  "competitors": ["Toddy", "OXO Cold Brew"]
+}
