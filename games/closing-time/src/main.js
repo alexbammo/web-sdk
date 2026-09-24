@@ -295,7 +295,7 @@ function updateHud() {
 				.join('') +
 			(ph === 'lockdown' ? `<div class="it"><small>Scan everything at the SELF CHECKOUT by the exit.</small></div>` : '');
 	}
-	$('list').classList.toggle('hidden', ph === 'lobby' || game.hideList);
+	$('list').classList.toggle('hidden', ph === 'lobby' || !!game.hideList);
 
 	$('team').innerHTML = s.P.filter((p) => p.id !== game.id)
 		.map(
@@ -491,7 +491,7 @@ function loop() {
 	cam.position.set(me.x, eye, me.z);
 	cam.rotation.set(me.pitch, me.yaw, me.downed ? 0.35 : Math.sin(bob / 2) * 0.006, 'YXZ');
 	const flick = me.battery < 15 ? (Math.random() < 0.08 ? 0.1 : 1) : 1;
-	world.torch.intensity = me.torch && game.phase !== 'lobby' && !me.escaped && !me.downed ? 16 * flick : 0;
+	world.torch.intensity = me.torch && game.phase !== 'lobby' && !me.escaped && !me.downed ? 8 * flick : 0;
 	world.localBeam.visible = world.torch.intensity > 0 && game.phase !== 'opening';
 	world.localBeam.material.uniforms.strength.value = 0.035 * flick;
 	game.hurt = Math.max(0, (game.hurt || 0) - dt * 1.2);

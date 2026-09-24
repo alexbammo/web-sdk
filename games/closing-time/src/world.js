@@ -15,8 +15,8 @@ export const layout = buildLayout();
 const LOOK = {
 	lobby: { key: 0.9, hemi: 0.26, env: 0.12, tube: 1, fog: 0.008, fogColor: 0x3a3c38, exposure: 0.9, emergency: 0, grain: 0.03 },
 	opening: { key: 0.9, hemi: 0.26, env: 0.12, tube: 1, fog: 0.008, fogColor: 0x3a3c38, exposure: 0.9, emergency: 0, grain: 0.04 },
-	lockdown: { key: 0, hemi: 0.035, env: 0.03, tube: 0, fog: 0.03, fogColor: 0x05060a, exposure: 1.0, emergency: 1, grain: 0.1 },
-	finale: { key: 0, hemi: 0.05, env: 0.04, tube: 0, fog: 0.026, fogColor: 0x0a0405, exposure: 1.05, emergency: 1.4, grain: 0.13 },
+	lockdown: { key: 0, hemi: 0.035, env: 0.03, tube: 0, fog: 0.03, fogColor: 0x05060a, exposure: 1.0, emergency: 1, grain: 0.06 },
+	finale: { key: 0, hemi: 0.05, env: 0.04, tube: 0, fog: 0.026, fogColor: 0x0a0405, exposure: 1.05, emergency: 1.4, grain: 0.08 },
 	ended: { key: 0, hemi: 0.06, env: 0.05, tube: 0, fog: 0.02, fogColor: 0x05060a, exposure: 1.0, emergency: 1, grain: 0.1 }
 };
 

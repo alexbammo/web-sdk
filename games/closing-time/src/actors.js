@@ -64,7 +64,7 @@ export class Actors {
 		this.dynamicSources = [];
 		this.localId = null;
 		this.handGroup = new THREE.Group(); // first-person held items
-		this.handGroup.position.set(0.32, -0.34, -0.55);
+		this.handGroup.position.set(0.36, -0.4, -0.72);
 		world.camera.add(this.handGroup);
 	}
 
@@ -239,7 +239,7 @@ export class Actors {
 					fz = -Math.cos(e.ry);
 				sp.position.set(e.pos.x + fx * 0.3, 1.4, e.pos.z + fz * 0.3);
 				sp.target.position.set(e.pos.x + fx * 6, 1.4 + Math.sin(p.pi) * 6 - 0.8, e.pos.z + fz * 6);
-				sp.intensity = 12;
+				sp.intensity = 7;
 				sp.color.set(0xfff0d8);
 				sp.visible = true;
 				sp.beam.visible = dark;
@@ -338,10 +338,10 @@ export class Actors {
 		held.forEach((e, i) => {
 			if (e.root.parent !== this.handGroup) {
 				this.handGroup.add(e.root);
-				e.root.scale.setScalar(0.7);
+				e.root.scale.setScalar(0.42);
 				e.root.rotation.set(0, 0.6, 0);
 			}
-			e.root.position.set(i ? -0.62 : 0, -0.05 + Math.sin(performance.now() / 300) * 0.01, 0);
+			e.root.position.set(i ? -0.5 : 0, -0.05 + Math.sin(performance.now() / 300) * 0.01, 0);
 		});
 		for (const e of this.items.values()) if (e.root.parent === this.handGroup && !held.includes(e)) this.scene.add(e.root);
 		if (local && local.dn) this.handGroup.visible = false;
