@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "start": "node server/server.js",
+    "prestart": "test -d dist || npm run build",
     "e2e": "node tests/e2e.mjs"
   },
   "dependencies": {

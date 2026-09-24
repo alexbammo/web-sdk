@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: closing-time
+    runtime: node
+    rootDir: games/closing-time
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /

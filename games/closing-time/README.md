@@ -18,6 +18,17 @@ npm start            # http://localhost:8080  (PORT env var to change)
 Open the URL, pick a name and a room code, and share the room link with up to three friends. The run starts when
 everyone in the lobby is ready (or someone presses *Start now*).
 
+### Play with friends online
+
+The server is one Node process (static client + WebSocket on the same port), so it deploys anywhere Node runs:
+
+- **Render**: connect the repo, it picks up `render.yaml` (free plan works; the first visit after idle takes ~30s).
+- **Fly.io**: `cd games/closing-time && fly launch --copy-config && fly deploy`.
+- **Any Docker host**: `docker build -t closing-time . && docker run -p 8080:8080 closing-time`.
+- **No hosting, just tonight**: `npm start` then `cloudflared tunnel --url http://localhost:8080` (or `ngrok http 8080`) and share the printed link.
+
+The client connects to the WebSocket on whatever host and protocol it was served from, so HTTPS hosts work without config.
+
 For development, run `npm start` (WebSocket server on :8080) and `npm run dev` (Vite on :5173, proxies `/ws`).
 
 ### Controls
