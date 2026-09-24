@@ -164,6 +164,10 @@ function onEvent(e) {
 			audio.sfx('stinger', dist);
 			game.fear = 1;
 			break;
+		case 'spotted':
+			audio.sfx('stinger', dist);
+			if (e.pid === game.id) toast('SECURITY: "Oi! Stay where you are!"');
+			break;
 		case 'banish':
 			audio.sfx('banish', dist);
 			break;

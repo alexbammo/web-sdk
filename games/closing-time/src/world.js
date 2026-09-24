@@ -13,15 +13,15 @@ export const layout = buildLayout();
 
 // Per-phase lighting targets. Values are blended over time so the blackout reads as a failure, not a cut.
 const LOOK = {
-	lobby: { key: 1.1, hemi: 0.42, env: 0.22, tube: 1, fog: 0.008, fogColor: 0x3a3c38, exposure: 0.9, emergency: 0, grain: 0.03 },
-	opening: { key: 1.1, hemi: 0.42, env: 0.22, tube: 1, fog: 0.008, fogColor: 0x3a3c38, exposure: 0.9, emergency: 0, grain: 0.04 },
+	lobby: { key: 0.9, hemi: 0.26, env: 0.12, tube: 1, fog: 0.008, fogColor: 0x3a3c38, exposure: 0.9, emergency: 0, grain: 0.03 },
+	opening: { key: 0.9, hemi: 0.26, env: 0.12, tube: 1, fog: 0.008, fogColor: 0x3a3c38, exposure: 0.9, emergency: 0, grain: 0.04 },
 	lockdown: { key: 0, hemi: 0.035, env: 0.03, tube: 0, fog: 0.03, fogColor: 0x05060a, exposure: 1.0, emergency: 1, grain: 0.1 },
 	finale: { key: 0, hemi: 0.05, env: 0.04, tube: 0, fog: 0.026, fogColor: 0x0a0405, exposure: 1.05, emergency: 1.4, grain: 0.13 },
 	ended: { key: 0, hemi: 0.06, env: 0.05, tube: 0, fog: 0.02, fogColor: 0x05060a, exposure: 1.0, emergency: 1, grain: 0.1 }
 };
 
 const SOURCE = {
-	tube: { color: 0xeef6ec, intensity: 9, distance: 12 },
+	tube: { color: 0xeef6ec, intensity: 16, distance: 12 },
 	heat: { color: 0xff7a2a, intensity: 9, distance: 6 },
 	till: { color: 0xfff1d6, intensity: 5, distance: 5 },
 	jewel: { color: 0xffd6f0, intensity: 7, distance: 5 },
@@ -65,7 +65,7 @@ export class World {
 		const { map, rough } = floorTextures();
 		const floor = new THREE.Mesh(
 			new THREE.PlaneGeometry(W, D),
-			new THREE.MeshStandardMaterial({ map, roughnessMap: rough, roughness: 0.55, metalness: 0.0, envMapIntensity: 1.4 })
+			new THREE.MeshStandardMaterial({ map, roughnessMap: rough, roughness: 0.6, metalness: 0.0, envMapIntensity: 0.6 })
 		);
 		floor.rotation.x = -Math.PI / 2;
 		floor.position.set(W / 2, 0, D / 2);
@@ -634,7 +634,7 @@ export class World {
 		if (ex) ex.mat.emissiveIntensity = this.phase === 'finale' ? 2.5 : dark ? 1.4 : 0.8;
 		const sn = this.signs.storeName;
 		if (sn) sn.mat.emissiveIntensity = dark ? (Math.random() < 0.03 ? 1.2 : 0.02) : 0.7;
-		this.tillScreen.material.emissiveIntensity = 1.2;
+		this.tillScreen.material.emissiveIntensity = 0.55;
 		const alarm = this.phase === 'finale' || (this.scanFlash && this.time < this.scanFlash);
 		this.beacon.material.color.setRGB(alarm && Math.sin(this.time * 14) > 0 ? 4 : 0.35, alarm && Math.sin(this.time * 14) > 0 ? 1.6 : 0.15, 0);
 

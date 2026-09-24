@@ -64,7 +64,7 @@ export class Bot {
 		hostiles.sort((a, b) => d(a, me) - d(b, me));
 		const mannequins = s.E.filter((e) => e.ty === 'mannequin' && d(e, me) < 9 && lineOfSight(g.layout.solids, me.x, me.z, e.x, e.z));
 		mannequins.sort((a, b) => d(a, me) - d(b, me));
-		const chasers = s.E.filter((e) => e.ty === 'zombie' && d(e, me) < 7);
+		const chasers = s.E.filter((e) => (e.ty === 'zombie' || (e.ty === 'security' && e.st === 'chase')) && d(e, me) < 7);
 		if ((me.battery ?? 100) > 0) me.torch = true;
 		if (hostiles.length) this.aim = hostiles[0];
 		else if (mannequins.length && d(mannequins[0], me) < 6) this.aim = mannequins[0];
@@ -199,7 +199,8 @@ export class Bot {
 			let ax = 0,
 				az = 0;
 			for (const e of g.snap.E) {
-				const danger = e.ty === 'zombie' || (e.ty === 'ghost' && e.st === 'hostile') || e.ty === 'mannequin';
+				// mannequins are handled by staring at them, not by running away
+				const danger = e.ty === 'zombie' || e.ty === 'security' || (e.ty === 'ghost' && e.st === 'hostile');
 				if (!danger || (g.phase === 'opening' && e.ty !== 'zombie')) continue;
 				const dx = me.x - e.x,
 					dz = me.z - e.z;
@@ -209,11 +210,17 @@ export class Bot {
 				ax += (dx / dd) * w * 1.6;
 				az += (dz / dd) * w * 1.6;
 			}
-			if (ax || az) {
+			if ((ax || az) && this.act !== 'hold') {
 				const nx = dir.x + ax,
 					nz = dir.z + az;
 				const l = Math.hypot(nx, nz) || 1;
-				dir = { x: nx / l, z: nz / l };
+				let nd = { x: nx / l, z: nz / l };
+				// never let avoidance stall progress: fall back to side-stepping around the threat
+				if (nd.x * dir.x + nd.z * dir.z < 0.35) {
+					const side = ax * dir.z - az * dir.x > 0 ? 1 : -1;
+					nd = { x: dir.x * 0.6 + dir.z * side * 0.8, z: dir.z * 0.6 - dir.x * side * 0.8 };
+				}
+				dir = nd;
 				this.sprint = true;
 			}
 		}

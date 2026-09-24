@@ -107,6 +107,7 @@ export class Actors {
 	formFor(en) {
 		if (en.ty === 'zombie') return 'zombie';
 		if (en.ty === 'mannequin') return 'mannequin';
+		if (en.ty === 'security') return 'security';
 		if (en.v >= 100) return en.v === 101 ? 'bride' : 'spirit';
 		return en.st === 'shopper' || en.st === 'lurk' ? 'shopper' : 'ghost';
 	}
@@ -124,6 +125,15 @@ export class Actors {
 			a.play();
 			ch.mixer.update(0.37 + (en.v % 5) * 0.21);
 			a.paused = true;
+		} else if (form === 'security') {
+			ch = await character('mini-market/character-employee', 1.85);
+			overrideMaterials(ch.model, (m) => {
+				const c = m.clone();
+				c.color = new THREE.Color(0.35, 0.38, 0.55);
+				c.emissive = new THREE.Color(0.25, 0, 0);
+				return c;
+			});
+			ch.play('walk');
 		} else if (form === 'shopper') {
 			ch = await character(CHARACTERS.shoppers[en.v % CHARACTERS.shoppers.length], 1.68);
 			overrideMaterials(ch.model, shopperTint);
@@ -230,6 +240,7 @@ export class Actors {
 				sp.position.set(e.pos.x + fx * 0.3, 1.4, e.pos.z + fz * 0.3);
 				sp.target.position.set(e.pos.x + fx * 6, 1.4 + Math.sin(p.pi) * 6 - 0.8, e.pos.z + fz * 6);
 				sp.intensity = 12;
+				sp.color.set(0xfff0d8);
 				sp.visible = true;
 				sp.beam.visible = dark;
 				sp.beam.position.copy(sp.position);
@@ -258,6 +269,21 @@ export class Actors {
 			e.fade = (e.fade ?? 1) + ((banished ? 0 : 1) - (e.fade ?? 1)) * Math.min(1, dt * 3);
 			e.root.visible = e.fade > 0.03;
 			if (e.form === 'mannequin') continue;
+			if (e.form === 'security' && dark) {
+				// the guard's torch uses the shared remote-torch pool
+				const sp = this.world.remoteTorch(torchI++);
+				const fx = -Math.sin(e.ry),
+					fz = -Math.cos(e.ry);
+				sp.position.set(e.pos.x + fx * 0.3, 1.5, e.pos.z + fz * 0.3);
+				sp.target.position.set(e.pos.x + fx * 8, 0.3, e.pos.z + fz * 8);
+				sp.color.set(en.st === 'chase' ? 0xff6050 : 0xdfe8ff);
+				sp.intensity = 14;
+				sp.visible = true;
+				sp.beam.visible = true;
+				sp.beam.position.copy(sp.position);
+				sp.beam.lookAt(sp.position.clone().multiplyScalar(2).sub(sp.target.position));
+				sp.beam.material.uniforms.strength.value = 0.06;
+			}
 			if (ch.ghost) {
 				ch.root.position.y = 0.25 + Math.sin(performance.now() / 400 + e.pos.x) * 0.12;
 				ch.model.traverse((o) => o.isMesh && (o.material.opacity = 0.55 * e.fade * (0.8 + 0.2 * Math.sin(performance.now() / 90))));

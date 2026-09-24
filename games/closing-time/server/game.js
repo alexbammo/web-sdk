@@ -25,6 +25,11 @@ const POIS = [
 	[80, 20], [80, 56], [90, 38], [20, 60], [50, 62], [80, 66], [30, 16], [66, 16], [84, 10]
 ];
 const POI_FIELDS = POIS.map(([x, z]) => distanceField(L.grid, [cellOf(x, z)]));
+// Security patrol loop: front concourse, cross aisle, back of the aisles
+const PATROL = [
+	[7, 17.5], [67, 17.5], [67, 38], [7, 38], [7, 58], [67, 58], [67, 38], [7, 38]
+];
+const PATROL_FIELDS = PATROL.map(([x, z]) => distanceField(L.grid, [cellOf(x, z)]));
 
 const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.z - b.z) ** 2;
 const fwd = (ry) => ({ x: -Math.sin(ry), z: -Math.cos(ry) });
@@ -155,6 +160,7 @@ export class Room {
 				if (!process.env.CT_DEBUG) break;
 				if (m.do === 'lockdown' && this.phase === 'opening') this.lockdown();
 				if (m.do === 'finale') this.finale();
+				if (m.do === 'god') p.invuln = 1e9;
 				break;
 			case 'hold':
 				p.hold = m.v ? { kind: m.kind, target: m.target } : null;
@@ -218,6 +224,9 @@ export class Room {
 		const R = rng(this.seed + 7);
 		const n = 4 + this.players.size;
 		for (let i = 0; i < n; i++) this.spawn('zombie', this.farPoint(R, 22));
+		const guard = this.spawn('security', { x: 7, z: 58 });
+		guard.wp = 4;
+		guard.state = 'patrol';
 		for (let i = 0; i < 6; i++) this.addGrave(R);
 		for (const p of this.players.values()) p.torch = true;
 		this.event({
@@ -231,6 +240,9 @@ export class Room {
 		this.setPhase('finale');
 		const R = rng(this.seed + 99);
 		for (let i = 0; i < 6; i++) this.spawn('zombie', this.farPoint(R, 30));
+		const guard = this.spawn('security', { x: 67, z: 38 });
+		guard.wp = 3;
+		guard.state = 'patrol';
 		for (const e of this.enemies) if (e.type === 'ghost' && e.state === 'shopper') e.state = 'hostile';
 		this.event({ k: 'receipt', voice: true, text: 'Thank you for shopping at St Mercy. Your exit is now open. Please do not linger.' });
 	}
@@ -513,7 +525,7 @@ export class Room {
 	updateEnemies(dt, alive) {
 		const phase = this.phase;
 		// a short grace period after the blackout lets players find their bearings
-		const hostile = (phase === 'lockdown' && this.phaseT > 10) || phase === 'finale';
+		const hostile = (phase === 'lockdown' && this.phaseT > 15) || phase === 'finale';
 		const mult = 1 + 0.07 * this.scans + (phase === 'finale' ? 0.18 : 0);
 		this.fieldT -= dt;
 		if (this.fieldT <= 0 && hostile) {
@@ -550,7 +562,7 @@ export class Room {
 			e.mv = 0;
 			if (e.type === 'zombie') {
 				if (!hostile) continue;
-				const tgt = nearest(e, 16);
+				const tgt = nearest(e, 12);
 				if (tgt) {
 					const f = fwd(e.ry);
 					const dx = tgt.x - e.x,
@@ -572,7 +584,7 @@ export class Room {
 						continue;
 					}
 					if (dist2(e, p) < 1.1 ** 2) {
-						this.attack(e, p, 25);
+						this.attack(e, p, 20);
 						continue;
 					}
 					const fld = this.fields.get(p.id);
@@ -674,6 +686,47 @@ export class Room {
 				}
 				const l = Math.sqrt(dist2(e, p)) || 1;
 				moveAlong(e, { x: (p.x - e.x) / l, z: (p.z - e.z) / l }, (e.stun > 0.2 ? 1.4 : 3.1) * mult, true);
+			} else if (e.type === 'security') {
+				// possessed security: sweeps a torch along a patrol route, chases whoever it catches in the beam
+				if (!hostile) continue;
+				if (e.state !== 'chase') {
+					const f = fwd(e.ry);
+					for (const q of alive) {
+						const dx = q.x - e.x,
+							dz = q.z - e.z;
+						const dd = Math.hypot(dx, dz);
+						if (dd < 15 && (f.x * dx + f.z * dz) / (dd || 1) > 0.82 && e.cd <= 0 && lineOfSight(L.solids, e.x, e.z, q.x, q.z)) {
+							e.state = 'chase';
+							e.target = q.id;
+							e.t = 0;
+							this.event({ k: 'spotted', id: e.id, pid: q.id, x: e.x, z: e.z });
+							break;
+						}
+					}
+				}
+				if (e.state === 'chase') {
+					const p = this.players.get(e.target);
+					if (!p || p.downed || p.escaped || e.t > 9) {
+						e.state = 'patrol';
+						e.cd = Math.max(e.cd, 4);
+						continue;
+					}
+					if (dist2(e, p) < 1.1 ** 2) {
+						this.attack(e, p, 30);
+						continue;
+					}
+					const fld = this.fields.get(p.id);
+					let dir = fld && descend(L.grid, fld, e.x, e.z);
+					if (!dir || dist2(e, p) < 4) {
+						const l = Math.sqrt(dist2(e, p)) || 1;
+						dir = { x: (p.x - e.x) / l, z: (p.z - e.z) / l };
+					}
+					moveAlong(e, dir, 3.5 * mult);
+				} else {
+					const fld = PATROL_FIELDS[e.wp];
+					if (fld[cellOf(e.x, e.z)] < 2) e.wp = (e.wp + 1) % PATROL.length;
+					moveAlong(e, descend(L.grid, fld, e.x, e.z), 1.5);
+				}
 			} else if (e.type === 'mannequin') {
 				if (!hostile) continue;
 				let seen = false;
@@ -689,11 +742,12 @@ export class Room {
 						break;
 					}
 				}
-				if (seen) continue;
+				if (seen || e.cd > 0) continue;
 				const p = nearest(e, 20);
 				if (!p) continue;
 				if (dist2(e, p) < 1.0) {
-					this.attack(e, p, 35);
+					this.attack(e, p, 25);
+					e.cd = Math.max(e.cd, 5);
 					continue;
 				}
 				const fld = this.fields.get(p.id);
@@ -724,6 +778,7 @@ export class Room {
 		e.cd = 1.3;
 		p.hp -= dmg;
 		p.hurtT = 0;
+		p.invuln = 1; // brief stagger window so a crowd can't chain hits
 		this.event({ k: 'hit', pid: p.id, by: e.type, id: e.id });
 		this.stats.hitsBy[e.type] = (this.stats.hitsBy[e.type] || 0) + 1;
 		if (p.hp <= 0) {
