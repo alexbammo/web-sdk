@@ -1,19 +1,14 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { Viewer } from './lib/viewer';
-	import {
-		buildReliefAvatar,
-		loadImage,
-		loadMeshAvatar,
-		sampleClothing,
-		toDataUrl,
-	} from './lib/avatar';
+	import { loadImage, loadPersonMesh, toDataUrl } from './lib/avatar';
 	import { analyze, generateAvatar, getConfig, logout, me } from './lib/api';
 	import { SCENE_LABELS, TIME_LABELS } from './lib/scenes';
 	import {
 		PROP_IDS,
 		SCENE_IDS,
 		TIMES_OF_DAY,
+		type AvatarJob,
 		type LinkedInIdentity,
 		type PropId,
 		type SceneDirection,
@@ -31,7 +26,8 @@
 	let about = $state('');
 	let extra = $state('');
 	let photo = $state<string | null>(null);
-	let photoImg: HTMLImageElement | null = null;
+	let fullBodyPhoto = $state(false);
+	let heightCm = $state(172);
 
 	let direction = $state<SceneDirection>({
 		scene: 'cafe',
@@ -39,15 +35,18 @@
 		accentColor: '#3f6e8c',
 		warmth: 0.55,
 		props: ['coffee', 'laptop', 'plants'],
-		caption: 'Add a photo to take a seat',
+		outfit: '',
+		caption: 'Add a photo, then recreate yourself in 3D',
 		reasoning: '',
 		source: 'heuristic',
 	});
 
 	let analyzing = $state(false);
-	let avatarKind = $state<'none' | 'relief' | 'mesh'>('none');
 	let generating = $state(false);
 	let genProgress = $state(0);
+	let genStage = $state<AvatarJob['stage']>('reference');
+	let referenceUrl = $state<string | null>(null);
+	let modelUrl = $state<string | null>(null);
 	let yaw = $state(0);
 	let autoRotate = $state(false);
 	let status = $state('');
@@ -101,13 +100,7 @@
 		try {
 			const img = await loadImage(src);
 			photo = toDataUrl(img);
-			photoImg = await loadImage(photo);
-			status = 'Cutting out your portrait…';
-			const relief = await buildReliefAvatar(photoImg);
-			viewer?.setAvatar(relief);
-			avatarKind = 'relief';
-			if (!direction.reasoning) direction.caption = 'Take a seat – then tell us a little about you';
-			status = 'Instant 2.5D preview ready';
+			modelUrl = referenceUrl = null;
 		} catch (e) {
 			error = `Couldn't use that photo: ${e instanceof Error ? e.message : e}`;
 		}
@@ -135,26 +128,33 @@
 	}
 
 	async function runGenerate() {
-		if (!photo || !photoImg) return;
+		if (!photo) return;
 		generating = true;
 		genProgress = 0;
+		referenceUrl = null;
 		error = '';
 		try {
-			const job = await generateAvatar(photo, (j) => {
-				genProgress = j.progress;
-				status =
-					j.status === 'queued'
-						? `Queued with ${j.provider}…`
-						: `Sculpting 3D model with ${j.provider}… ${Math.round(j.progress * 100)}%`;
-			});
-			status = 'Loading 3D model…';
-			const mesh = await loadMeshAvatar(job.modelUrl!, sampleClothing(photoImg));
-			viewer?.setAvatar(mesh);
-			viewer?.setAvatarYaw(yaw);
-			avatarKind = 'mesh';
-			status = 'High-quality 3D avatar loaded';
+			const job = await generateAvatar(
+				{ photo, fullBodyPhoto, outfit: direction.outfit || undefined },
+				(j) => {
+					genProgress = j.progress;
+					genStage = j.stage;
+					if (j.referenceUrl) referenceUrl = j.referenceUrl;
+					status =
+						j.stage === 'reference'
+							? 'Drawing you full-length…'
+							: `Sculpting your 3D model (${j.meshProvider})… ${Math.round(j.progress * 100)}%`;
+				},
+			);
+			status = 'Loading your 3D model…';
+			const person = await loadPersonMesh(job.modelUrl!, heightCm / 100);
+			viewer?.setAvatar(person);
+			modelUrl = job.modelUrl!;
+			if (!direction.reasoning) direction.caption = '';
+			yaw = 0;
+			status = 'Your 3D model is in the scene';
 		} catch (e) {
-			error = `3D generation failed: ${e instanceof Error ? e.message : e}`;
+			error = `3D recreation failed: ${e instanceof Error ? e.message : e}`;
 		} finally {
 			generating = false;
 		}
@@ -284,35 +284,76 @@
 	</section>
 
 	<section>
-		<h2><span>4</span> 3D avatar</h2>
-		<p class="hint">
-			{#if avatarKind === 'none'}Add a photo to see yourself in the scene.
-			{:else if avatarKind === 'relief'}Showing the instant 2.5D preview (best from the front).
-			{:else}Showing the full 3D model.{/if}
-		</p>
-		{#if config?.avatarProvider}
-			<button class="btn" onclick={runGenerate} disabled={!photo || generating}>
-				{generating ? `Sculpting… ${Math.round(genProgress * 100)}%` : 'Generate high-quality 3D'}
-			</button>
-			{#if generating}<div class="bar"><div style="width:{genProgress * 100}%"></div></div>{/if}
+		<h2><span>4</span> Recreate me in 3D</h2>
+		{#if !config?.avatar.mesh}
+			<p class="hint">
+				Needs an image-to-3D service on the server: add <code>FAL_KEY</code> (does both steps) or
+				<code>MESHY_API_KEY</code> to <code>.env</code>.
+			</p>
 		{:else}
 			<p class="hint">
-				Add a <code>MESHY_API_KEY</code> or <code>FAL_KEY</code> to the server for a full textured 3D
-				mesh.
+				{#if fullBodyPhoto}Your photo goes straight to 3D reconstruction.
+				{:else}Your headshot is first redrawn as a full-length photo of you, then rebuilt as a
+					textured 3D model. Takes a few minutes.{/if}
 			</p>
-		{/if}
-		{#if avatarKind === 'mesh'}
 			<label>
-				Turn avatar
+				Outfit below the photo
 				<input
-					type="range"
-					min="-180"
-					max="180"
-					step="1"
-					bind:value={yaw}
-					oninput={() => viewer?.setAvatarYaw(yaw)}
+					placeholder="e.g. navy blazer, white shirt, dark chinos, loafers"
+					bind:value={direction.outfit}
 				/>
 			</label>
+			<div class="grid2">
+				<label>
+					Height (cm)
+					<input type="number" min="120" max="220" bind:value={heightCm} />
+				</label>
+				<label class="check">
+					<input type="checkbox" bind:checked={fullBodyPhoto} />
+					Photo is already full-length
+				</label>
+			</div>
+			<button
+				class="btn"
+				onclick={runGenerate}
+				disabled={!photo || generating || (!fullBodyPhoto && !config.avatar.fullBodyFromHeadshot)}
+			>
+				{#if generating}{genStage === 'reference' ? 'Drawing you full-length…' : 'Sculpting in 3D…'}
+					{Math.round(genProgress * 100)}%
+				{:else}{modelUrl ? 'Recreate again' : 'Recreate me in 3D'}{/if}
+			</button>
+			{#if !fullBodyPhoto && !config.avatar.fullBodyFromHeadshot}
+				<p class="hint">
+					Turning a headshot into a full body needs <code>FAL_KEY</code>. Or upload a full-length
+					photo.
+				</p>
+			{/if}
+			{#if generating}<div class="bar"><div style="width:{genProgress * 100}%"></div></div>{/if}
+			{#if referenceUrl}
+				<figure class="reference">
+					<img src={referenceUrl} alt="Full-length reference the 3D model is built from" />
+					<figcaption>Reference the 3D model is built from</figcaption>
+				</figure>
+			{/if}
+			{#if modelUrl}
+				<label>
+					Turn
+					<input
+						type="range"
+						min="-180"
+						max="180"
+						step="1"
+						bind:value={yaw}
+						oninput={() => viewer?.setAvatarYaw(yaw)}
+					/>
+				</label>
+				<a
+					class="btn secondary"
+					href={modelUrl}
+					download="{(name || 'me').replace(/\s+/g, '-').toLowerCase()}.glb"
+					>Download 3D model (.glb)</a
+				>
+			{/if}
 		{/if}
 	</section>
 

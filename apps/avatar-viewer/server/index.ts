@@ -3,7 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyzeProfile, claudeConfigured } from './analyze.js';
-import { avatarProvider, fetchAvatarModel, pollAvatarJob, startAvatarJob } from './avatar.js';
+import { avatarCapabilities, fetchAvatarModel, pollAvatarJob, startAvatarJob } from './avatar.js';
 import {
 	authorizeUrl,
 	endSession,
@@ -11,7 +11,7 @@ import {
 	handleCallback,
 	linkedinConfigured,
 } from './linkedin.js';
-import type { ProfileInput, ServerConfig } from '../src/lib/types.js';
+import type { AvatarRequest, ProfileInput, ServerConfig } from '../src/lib/types.js';
 
 try {
 	process.loadEnvFile(fileURLToPath(new URL('../.env', import.meta.url)));
@@ -87,7 +87,7 @@ async function route(req: IncomingMessage, res: ServerResponse) {
 		const config: ServerConfig = {
 			claude: claudeConfigured(),
 			linkedin: linkedinConfigured(),
-			avatarProvider: avatarProvider(),
+			avatar: avatarCapabilities(),
 		};
 		return json(res, 200, config);
 	}
@@ -98,11 +98,11 @@ async function route(req: IncomingMessage, res: ServerResponse) {
 	}
 
 	if (pathname === '/api/avatar' && method === 'POST') {
-		const { photo } = await readJson<{ photo: string }>(req);
-		if (!/^data:image\/(jpeg|png|webp);base64,/.test(photo ?? '')) {
+		const body = await readJson<AvatarRequest>(req);
+		if (!/^data:image\/(jpeg|png|webp);base64,/.test(body.photo ?? '')) {
 			return json(res, 400, { error: 'photo must be a JPEG, PNG or WebP data URL' });
 		}
-		return json(res, 202, await startAvatarJob(photo));
+		return json(res, 202, await startAvatarJob(body));
 	}
 
 	const jobMatch = /^\/api\/avatar\/([0-9a-f-]{36})(\/model\.glb)?$/.exec(pathname);
@@ -183,6 +183,6 @@ createServer((req, res) => {
 }).listen(PORT, () => {
 	console.log(`[api] http://localhost:${PORT}`);
 	console.log(
-		`[api] claude=${claudeConfigured()} linkedin=${linkedinConfigured()} avatarProvider=${avatarProvider() ?? 'local'}`,
+		`[api] claude=${claudeConfigured()} linkedin=${linkedinConfigured()} avatar=${JSON.stringify(avatarCapabilities())}`,
 	);
 });

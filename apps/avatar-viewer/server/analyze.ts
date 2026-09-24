@@ -28,19 +28,30 @@ Guidance:
 - accentColor should complement their clothing or brand colours in the photo.
 - warmth: 0 is cool daylight, 1 is candle-warm.
 - props: 1 to 4 items that say something true about their work or interests.
+- outfit: the person will be recreated head to toe in 3D, but the photo usually only shows their shoulders. Describe a complete outfit, top to shoes, that continues exactly what they wear in the photo (same garments, colours, formality) and suits the scene. One plain sentence fragment of garments only, e.g. "a navy blazer over a white shirt, charcoal trousers, brown leather loafers". Describe only clothing, never their body or face.
 - caption: one short line in the style of a magazine photo caption, no name, under 70 characters.
 - reasoning: two sentences max, addressed to the person ("You ...").`;
 
 const SCHEMA = {
 	type: 'object',
 	additionalProperties: false,
-	required: ['scene', 'timeOfDay', 'accentColor', 'warmth', 'props', 'caption', 'reasoning'],
+	required: [
+		'scene',
+		'timeOfDay',
+		'accentColor',
+		'warmth',
+		'props',
+		'outfit',
+		'caption',
+		'reasoning',
+	],
 	properties: {
 		scene: { type: 'string', enum: [...SCENE_IDS] },
 		timeOfDay: { type: 'string', enum: [...TIMES_OF_DAY] },
 		accentColor: { type: 'string', description: 'CSS hex colour like #3f6e8c' },
 		warmth: { type: 'number' },
 		props: { type: 'array', items: { type: 'string', enum: [...PROP_IDS] } },
+		outfit: { type: 'string' },
 		caption: { type: 'string' },
 		reasoning: { type: 'string' },
 	},

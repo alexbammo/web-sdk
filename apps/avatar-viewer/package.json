@@ -5,19 +5,17 @@
 	"license": "MIT",
 	"type": "module",
 	"scripts": {
-		"dev": "node scripts/copy-mediapipe.mjs && concurrently -k -n api,web \"tsx watch server/index.ts\" \"vite --host --port 3010\"",
+		"dev": "concurrently -k -n api,web \"tsx watch server/index.ts\" \"vite --host --port 3010\"",
 		"dev:web": "vite --host --port 3010",
 		"dev:api": "tsx watch server/index.ts",
 		"start": "tsx server/index.ts",
-		"build": "node scripts/copy-mediapipe.mjs && vite build",
+		"build": "vite build",
 		"check": "svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.server.json --noEmit",
 		"preview": "vite preview",
-		"format": "prettier --write --ignore-path=../../.prettierignore .",
-		"setup:assets": "node scripts/copy-mediapipe.mjs"
+		"format": "prettier --write --ignore-path=../../.prettierignore ."
 	},
 	"dependencies": {
 		"@anthropic-ai/sdk": "^0.128.0",
-		"@mediapipe/tasks-vision": "^1.0.1",
 		"three": "^0.186.0"
 	},
 	"devDependencies": {

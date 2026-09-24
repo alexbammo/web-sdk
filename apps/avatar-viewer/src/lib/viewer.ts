@@ -6,7 +6,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { GroundedSkybox } from 'three/addons/objects/GroundedSkybox.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { buildScene, SITTER_Z, type BuiltScene } from './scenes';
+import { buildScene, type BuiltScene } from './scenes';
 import { LIGHTING, kelvin, practicalColor } from './lighting';
 import { loadHdri } from './polyhaven';
 import type { AvatarHandle } from './avatar';
@@ -24,7 +24,6 @@ export class Viewer {
 	private built: BuiltScene | null = null;
 	private avatar: AvatarHandle | null = null;
 	private avatarRig = new THREE.Group();
-	private torso: THREE.Mesh;
 	private skybox: GroundedSkybox | null = null;
 	private hdri: THREE.Texture | null = null;
 	private fallbackEnv: THREE.Texture;
@@ -54,7 +53,7 @@ export class Viewer {
 		this.controls.enableDamping = true;
 		this.controls.dampingFactor = 0.06;
 		this.controls.minDistance = 0.7;
-		this.controls.maxDistance = 5.5;
+		this.controls.maxDistance = 6.5;
 		this.controls.maxPolarAngle = Math.PI * 0.53;
 		this.controls.autoRotateSpeed = 0.6;
 
@@ -73,15 +72,6 @@ export class Viewer {
 		this.sun.shadow.normalBias = 0.02;
 		this.sun.shadow.radius = 3;
 		this.scene.add(this.sun, this.sun.target, this.fill, this.avatarRig);
-
-		// Seated-torso proxy under the bust so the person reads as sitting at the table.
-		this.torso = new THREE.Mesh(
-			new THREE.CapsuleGeometry(0.17, 0.3, 8, 24),
-			new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.85 }),
-		);
-		this.torso.scale.set(1, 1, 0.62);
-		this.torso.castShadow = this.torso.receiveShadow = true;
-		this.avatarRig.add(this.torso);
 
 		const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
 		this.composer = new EffectComposer(this.renderer, rt);
@@ -143,8 +133,6 @@ export class Viewer {
 			}
 			this.built = buildScene(dir);
 			this.scene.add(this.built.root);
-			const start = this.built.cameraStart;
-			this.camera.position.copy(start);
 			this.placeAvatar();
 		}
 		this.applyLighting(dir);
@@ -243,32 +231,32 @@ export class Viewer {
 			this.avatar.dispose();
 		}
 		this.avatar = handle;
-		if (handle) {
-			this.avatarRig.add(handle.object);
-			(this.torso.material as THREE.MeshStandardMaterial).color.copy(handle.clothing);
-		}
-		this.torso.visible = Boolean(handle);
+		if (handle) this.avatarRig.add(handle.object);
 		this.placeAvatar();
 	}
 
-	/** Rotates the avatar around its vertical axis (degrees) – generated meshes don't always face forward. */
+	/** Extra rotation (degrees) on top of facing the camera – generated meshes don't always face forward. */
 	setAvatarYaw(deg: number) {
 		this.yaw = THREE.MathUtils.degToRad(deg);
-		if (this.avatar) this.avatar.object.rotation.y = this.yaw;
+		this.placeAvatar(false);
 	}
 
-	private placeAvatar() {
-		const topY = this.built?.tableTopY ?? 0.75;
-		// Bust base just below the table top, as if seated; torso proxy fills the chair.
-		const baseY = topY - 0.06;
-		this.avatarRig.position.set(0, 0, SITTER_Z);
-		if (this.avatar) {
-			this.avatar.object.position.y = baseY;
-			this.avatar.object.rotation.y = this.yaw;
-		}
-		this.torso.position.set(0, baseY - 0.14, -0.02);
-		const headY = baseY + 0.42;
-		this.controls.target.set(0, headY - 0.12, SITTER_Z * 0.6);
+	/** Stands the person beside the table, turned towards the opening camera. */
+	private placeAvatar(frameCamera = true) {
+		if (!this.built) return;
+		const spot = this.built.standAt;
+		const start = this.built.cameraStart;
+		this.avatarRig.position.copy(spot);
+		this.avatarRig.rotation.y = Math.atan2(start.x - spot.x, start.z - spot.z) * 0.7 + this.yaw;
+		if (!frameCamera) return;
+		// Frame the table and the whole person, from the scene's preferred direction.
+		const target = new THREE.Vector3(spot.x * 0.55, 0.9, spot.z * 0.5);
+		const dir = start.clone().sub(target).setY(0).normalize();
+		this.camera.position
+			.copy(target)
+			.addScaledVector(dir, this.built.frameDistance ?? 3.9)
+			.setY(1.5);
+		this.controls.target.copy(target);
 		this.controls.update();
 	}
 

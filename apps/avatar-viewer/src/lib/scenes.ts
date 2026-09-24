@@ -24,6 +24,9 @@ import type { SceneDirection, SceneId, TimeOfDay } from './types';
 
 export const SITTER_Z = -0.58;
 
+const STAND_ROUND = () => new THREE.Vector3(0.7, 0, -0.3);
+const STAND_RECT = () => new THREE.Vector3(0.98, 0, -0.18);
+
 export interface Practical {
 	light: THREE.Light;
 	base: number;
@@ -42,6 +45,10 @@ export interface BuiltScene {
 	/** Sun azimuth override so light falls through this scene's windows. */
 	sunAzimuth?: number;
 	cameraStart: THREE.Vector3;
+	/** Where the person stands, beside the hero table. */
+	standAt: THREE.Vector3;
+	/** How far back the opening camera sits, so it stays inside the set. Default 3.9 m. */
+	frameDistance?: number;
 }
 
 export const SCENE_LABELS: Record<SceneId, string> = {
@@ -234,6 +241,7 @@ function cafe(dir: SceneDirection): BuiltScene {
 		hdri: hdriFor(dir.timeOfDay),
 		sunAzimuth: 270, // from -X, through the left windows
 		cameraStart: new THREE.Vector3(1.3, 1.45, 2.1),
+		standAt: STAND_ROUND(),
 	};
 }
 
@@ -302,8 +310,8 @@ function veranda(dir: SceneDirection): BuiltScene {
 	chairA.position.set(0, 0, SITTER_Z - 0.05);
 	root.add(chairA);
 	const lounge = armchair(cushion);
-	lounge.position.set(1.6, 0, 0.5);
-	lounge.rotation.y = -Math.PI / 2 - 0.4;
+	lounge.position.set(-1.9, 0, 0.9);
+	lounge.rotation.y = 2.0; // angled towards the table, out of the opening sightline
 	root.add(lounge);
 
 	const warm = practicalColor(dir.warmth);
@@ -341,6 +349,8 @@ function veranda(dir: SceneDirection): BuiltScene {
 		envScale: 1,
 		hdri: hdriFor(dir.timeOfDay),
 		cameraStart: new THREE.Vector3(1.6, 1.5, 2.2),
+		standAt: STAND_ROUND(),
+		frameDistance: 2.8, // the deck is only 5 m deep
 	};
 }
 
@@ -427,6 +437,7 @@ function loft(dir: SceneDirection): BuiltScene {
 		hdri: hdriFor(dir.timeOfDay),
 		sunAzimuth: 270,
 		cameraStart: new THREE.Vector3(1.4, 1.5, 2.3),
+		standAt: STAND_RECT(),
 	};
 }
 
@@ -510,6 +521,7 @@ function library(dir: SceneDirection): BuiltScene {
 		hdri: hdriFor(dir.timeOfDay),
 		sunAzimuth: 270,
 		cameraStart: new THREE.Vector3(1.2, 1.4, 2.0),
+		standAt: STAND_RECT(),
 	};
 }
 
@@ -603,6 +615,7 @@ function rooftop(dir: SceneDirection): BuiltScene {
 				? PH.hdri.night
 				: hdriFor(dir.timeOfDay),
 		cameraStart: new THREE.Vector3(1.5, 1.45, 2.2),
+		standAt: STAND_ROUND(),
 	};
 }
 

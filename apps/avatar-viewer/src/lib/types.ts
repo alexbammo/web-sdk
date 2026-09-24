@@ -30,6 +30,11 @@ export interface SceneDirection {
 	/** 0 = cool/neutral, 1 = very warm (candle-lit). */
 	warmth: number;
 	props: PropId[];
+	/**
+	 * Full outfit for the 3D recreation, head to toe, continuing what they wear
+	 * in the photo, e.g. "a navy blazer over a white shirt, dark chinos, brown loafers".
+	 */
+	outfit: string;
 	/** One-line caption shown in the viewer, e.g. "Morning espresso before a design review". */
 	caption: string;
 	/** Short explanation of why this scene was chosen. */
@@ -59,17 +64,34 @@ export interface LinkedInIdentity {
 export interface ServerConfig {
 	claude: boolean;
 	linkedin: boolean;
-	avatarProvider: 'meshy' | 'fal' | null;
+	avatar: {
+		/** Service that builds the mesh, or null if 3D generation is off. */
+		mesh: 'meshy' | 'fal' | null;
+		/** Whether a headshot can be re-drawn full-length (needs fal). */
+		fullBodyFromHeadshot: boolean;
+	};
 }
 
-export type AvatarJobStatus = 'queued' | 'running' | 'succeeded' | 'failed';
+export interface AvatarRequest {
+	/** Data URL of the photo. */
+	photo: string;
+	/** True when the photo already shows the whole person, so no re-drawing is needed. */
+	fullBodyPhoto?: boolean;
+	outfit?: string;
+}
+
+export type AvatarJobStatus = 'running' | 'succeeded' | 'failed';
 
 export interface AvatarJob {
 	id: string;
 	status: AvatarJobStatus;
+	/** reference = drawing the full-length photo, mesh = building the 3D model. */
+	stage: 'reference' | 'mesh';
 	progress: number;
-	provider: 'meshy' | 'fal';
+	meshProvider?: 'meshy' | 'fal';
 	error?: string;
+	/** The full-length reference image the mesh is built from. */
+	referenceUrl?: string;
 	/** Same-origin URL the viewer can load the GLB from. */
 	modelUrl?: string;
 }

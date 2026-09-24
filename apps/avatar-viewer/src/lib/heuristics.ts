@@ -137,6 +137,8 @@ export function heuristicDirection(input: ProfileInput): SceneDirection {
 		accentColor: best.accent,
 		warmth: best.warmth,
 		props: best.props,
+		// Without Claude we can't see the photo; let the image model continue what they wear.
+		outfit: '',
 		caption: best.caption,
 		reasoning:
 			bestScore > 0

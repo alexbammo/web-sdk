@@ -1,5 +1,6 @@
 import type {
 	AvatarJob,
+	AvatarRequest,
 	LinkedInIdentity,
 	ProfileInput,
 	SceneDirection,
@@ -50,15 +51,12 @@ export async function logout() {
 }
 
 export async function generateAvatar(
-	photo: string,
+	req: AvatarRequest,
 	onProgress: (job: AvatarJob) => void,
 ): Promise<AvatarJob> {
-	let job = await request<AvatarJob>('/api/avatar', {
-		method: 'POST',
-		body: JSON.stringify({ photo }),
-	});
+	let job = await request<AvatarJob>('/api/avatar', { method: 'POST', body: JSON.stringify(req) });
 	onProgress(job);
-	while (job.status === 'queued' || job.status === 'running') {
+	while (job.status === 'running') {
 		await new Promise((r) => setTimeout(r, 4000));
 		job = await request<AvatarJob>(`/api/avatar/${job.id}`);
 		onProgress(job);
