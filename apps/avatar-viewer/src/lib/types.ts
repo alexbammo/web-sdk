@@ -1,6 +1,6 @@
 // Shared between the browser app and the API server.
 
-export const SCENE_IDS = ['cafe', 'veranda', 'loft', 'library', 'rooftop'] as const;
+export const SCENE_IDS = ['office', 'cafe', 'veranda', 'loft', 'library', 'rooftop'] as const;
 export type SceneId = (typeof SCENE_IDS)[number];
 
 export const TIMES_OF_DAY = ['morning', 'midday', 'golden', 'dusk', 'night'] as const;
@@ -70,6 +70,8 @@ export interface ServerConfig {
 		/** Whether a headshot can be re-drawn full-length (needs fal). */
 		fullBodyFromHeadshot: boolean;
 	};
+	/** Whether exported stills can get the photographic finishing pass (needs fal). */
+	photoFinish: boolean;
 }
 
 export interface AvatarRequest {
@@ -85,8 +87,8 @@ export type AvatarJobStatus = 'running' | 'succeeded' | 'failed';
 export interface AvatarJob {
 	id: string;
 	status: AvatarJobStatus;
-	/** reference = drawing the full-length photo, mesh = building the 3D model. */
-	stage: 'reference' | 'mesh';
+	/** reference = full-length photo, views = side and back photos, mesh = building the 3D model. */
+	stage: 'reference' | 'views' | 'mesh';
 	progress: number;
 	meshProvider?: 'meshy' | 'fal';
 	error?: string;
@@ -94,4 +96,23 @@ export interface AvatarJob {
 	referenceUrl?: string;
 	/** Same-origin URL the viewer can load the GLB from. */
 	modelUrl?: string;
+}
+
+/** Aspect ratios for exported stills: LinkedIn profile photo, and a landscape post image. */
+export const STILL_ASPECTS = { '1:1': [1, 1], '16:9': [16, 9] } as const;
+export type StillAspect = keyof typeof STILL_ASPECTS;
+
+export interface FinishRequest {
+	/** PNG/JPEG data URL of the current 3D render. */
+	render: string;
+	/** Data URL of the person's original photo, used as the identity reference. */
+	photo: string;
+	aspect: StillAspect;
+}
+
+export interface FinishJob {
+	id: string;
+	status: AvatarJobStatus;
+	imageUrl?: string;
+	error?: string;
 }

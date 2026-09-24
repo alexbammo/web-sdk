@@ -262,9 +262,7 @@ export function tableLamp(color: THREE.Color, intensity: number) {
 	shade.position.y = 0.33;
 	const light = new THREE.PointLight(color, intensity * 2.2, 4, 2);
 	light.position.y = 0.3;
-	light.castShadow = true;
-	light.shadow.mapSize.set(512, 512);
-	light.shadow.bias = -0.002;
+	// No shadow: the viewer uses VSM shadows (soft), which three.js doesn't support for point lights.
 	g.add(base, shade, light);
 	g.userData.practical = [{ light, base: 2.2 }];
 	return g;

@@ -52,6 +52,7 @@ export interface BuiltScene {
 }
 
 export const SCENE_LABELS: Record<SceneId, string> = {
+	office: 'Modern office',
 	cafe: 'Neighbourhood café',
 	veranda: 'Garden veranda',
 	loft: 'Studio loft',
@@ -125,6 +126,107 @@ function heroSet(dir: SceneDirection, topMat: THREE.Material, round = true) {
 }
 
 // ---------------- scenes ----------------
+
+function office(dir: SceneDirection): BuiltScene {
+	const root = new THREE.Group();
+	const W = 10;
+	const D = 8;
+	const H = 3.2;
+	root.add(
+		floor(W, D, pbrMaterial(PH.tex.woodFloor, { color: 0xc9b193, repeat: [4, 4], tint: 0xf2e6d6 })),
+	);
+	const white = pbrMaterial(PH.tex.plaster, {
+		color: 0xeeebe6,
+		repeat: [0.4, 0.4],
+		tint: 0xfbf9f5,
+	});
+	const back = wall(W, H, white);
+	back.position.set(0, 0, -D / 2);
+	const right = wall(D, H, white);
+	right.rotation.y = -Math.PI / 2;
+	right.position.set(W / 2, 0, 0);
+	root.add(back, right);
+	// Floor-to-ceiling glazing on the left: the soft daylight source for the set.
+	const frame = new THREE.MeshStandardMaterial({ color: 0x2b2d30, metalness: 0.5, roughness: 0.4 });
+	const glassWall = wall(D, H, frame, [[0, D - 0.3, 0.05, H - 0.2]], 0.08);
+	glassWall.rotation.y = Math.PI / 2;
+	glassWall.position.set(-W / 2, 0, 0);
+	root.add(glassWall);
+	const win = steelWindow(D - 0.3, H - 0.2, 5, 1);
+	win.rotation.y = Math.PI / 2;
+	win.position.set(-W / 2 + 0.05, 0.05, 0);
+	root.add(win);
+	const ceiling = floor(W, D, new THREE.MeshStandardMaterial({ color: 0xf4f3f0, roughness: 0.95 }));
+	ceiling.rotation.x = Math.PI / 2;
+	ceiling.position.y = H;
+	root.add(ceiling);
+
+	// Oak slat feature wall behind the desk.
+	const oak = pbrMaterial(PH.tex.tableWood, { color: 0xb8916a, repeat: [0.3, 1] });
+	for (let x = -2.4; x <= 2.4; x += 0.12) {
+		const slat = box(0.06, H - 0.1, 0.05, oak);
+		slat.position.set(x, (H - 0.1) / 2, -D / 2 + 0.16);
+		root.add(slat);
+	}
+
+	const topMat = pbrMaterial(PH.tex.tableWood, {
+		color: 0xd8c3a5,
+		repeat: [1.5, 1],
+		tint: 0xf5ebdd,
+	});
+	const { group, topY, accent } = heroSet(dir, topMat, false);
+	root.add(group);
+	const upholstery = pbrMaterial(PH.tex.fabric, { color: accent, tint: accent });
+	const chair = bistroChair(frame, upholstery);
+	chair.position.set(0, 0, SITTER_Z - 0.05);
+	root.add(chair);
+	const lounge = armchair(pbrMaterial(PH.tex.fabric, { color: 0xb9b3a8, tint: 0xe4dfd6 }));
+	lounge.position.set(-2.3, 0, 1.3);
+	lounge.rotation.y = 2.3;
+	root.add(lounge);
+	const shelf = bookshelf(1.8, 2.0, oak, 9);
+	shelf.position.set(3.4, 0, -D / 2 + 0.3);
+	root.add(shelf);
+	// Background meeting table so the office feels occupied.
+	const meeting = rectTable(topMat, 2.4, 1.1);
+	meeting.position.set(2.6, 0, -1.6);
+	root.add(meeting);
+	for (const x of [1.9, 2.6, 3.3]) {
+		const c = bistroChair(frame, upholstery);
+		c.position.set(x, 0, -2.35);
+		root.add(c);
+	}
+	for (const [x, z, h] of [
+		[-W / 2 + 0.6, -D / 2 + 0.6, 1.9],
+		[-W / 2 + 0.6, 2.8, 1.3],
+		[W / 2 - 0.6, 1.8, 1.6],
+	]) {
+		const p = proceduralPlant(h, 0xefece6, Math.round(h * 23));
+		p.position.set(x, 0, z);
+		root.add(p);
+	}
+	const warm = practicalColor(dir.warmth);
+	for (const [x, z] of [
+		[0, 0],
+		[2.6, -1.6],
+	]) {
+		const p = pendantLamp(warm, 0.6, H - 1.95);
+		p.position.set(x, H, z);
+		root.add(p);
+	}
+
+	return {
+		root,
+		tableTopY: topY,
+		practicals: collectPracticals(root),
+		outdoor: false,
+		envScale: 0.75,
+		hdri: hdriFor(dir.timeOfDay),
+		sunAzimuth: 280,
+		cameraStart: new THREE.Vector3(1.2, 1.5, 2.4),
+		standAt: STAND_RECT(),
+	};
+}
 
 function cafe(dir: SceneDirection): BuiltScene {
 	const root = new THREE.Group();
@@ -620,6 +722,7 @@ function rooftop(dir: SceneDirection): BuiltScene {
 }
 
 const BUILDERS: Record<SceneId, (dir: SceneDirection) => BuiltScene> = {
+	office,
 	cafe,
 	veranda,
 	loft,

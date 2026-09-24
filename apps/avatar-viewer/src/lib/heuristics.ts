@@ -14,6 +14,47 @@ interface Rule {
 }
 
 const RULES: Rule[] = [
+	// Listed first so it wins ties, and last-resort default below.
+	{
+		words: [
+			'finance',
+			'banking',
+			'ceo',
+			'partner',
+			'director',
+			'executive',
+			'consult',
+			'account',
+			'recruit',
+			'operations',
+			'hr',
+		],
+		scene: 'office',
+		time: 'morning',
+		accent: '#2f4a6b',
+		warmth: 0.4,
+		props: ['notebook', 'coffee'],
+		caption: 'Morning light before the first meeting',
+	},
+	{
+		words: [
+			'engineer',
+			'developer',
+			'software',
+			'data',
+			'product',
+			'marketing',
+			'analyst',
+			'manager',
+			'startup',
+		],
+		scene: 'cafe',
+		time: 'morning',
+		accent: '#3f6e8c',
+		warmth: 0.5,
+		props: ['laptop', 'coffee'],
+		caption: 'A flat white before stand-up',
+	},
 	{
 		words: [
 			'design',
@@ -28,11 +69,11 @@ const RULES: Rule[] = [
 			'photograph',
 		],
 		scene: 'loft',
-		time: 'midday',
+		time: 'morning',
 		accent: '#d9643a',
 		warmth: 0.45,
-		props: ['sketchbook', 'coffee', 'plants'],
-		caption: 'Sketching ideas in a sunlit studio loft',
+		props: ['sketchbook', 'coffee'],
+		caption: 'Ideas taking shape in a sunlit studio',
 	},
 	{
 		words: [
@@ -49,32 +90,20 @@ const RULES: Rule[] = [
 			'teacher',
 		],
 		scene: 'library',
-		time: 'dusk',
+		time: 'golden',
 		accent: '#7a2f2f',
-		warmth: 0.75,
-		props: ['books', 'tea', 'notebook'],
-		caption: 'An evening among the stacks',
+		warmth: 0.6,
+		props: ['books', 'tea'],
+		caption: 'Late afternoon among the stacks',
 	},
 	{
-		words: [
-			'finance',
-			'investor',
-			'venture',
-			'vc',
-			'banking',
-			'founder',
-			'ceo',
-			'partner',
-			'sales',
-			'director',
-			'executive',
-		],
+		words: ['investor', 'venture', 'vc', 'founder', 'sales'],
 		scene: 'rooftop',
-		time: 'night',
+		time: 'dusk',
 		accent: '#c9a54c',
-		warmth: 0.6,
-		props: ['wine', 'plants'],
-		caption: 'City lights after closing the round',
+		warmth: 0.55,
+		props: ['notebook'],
+		caption: 'The city at the end of a big day',
 	},
 	{
 		words: [
@@ -85,7 +114,6 @@ const RULES: Rule[] = [
 			'sustainab',
 			'hospitality',
 			'travel',
-			'wine',
 			'food',
 			'chef',
 			'garden',
@@ -93,35 +121,15 @@ const RULES: Rule[] = [
 		scene: 'veranda',
 		time: 'golden',
 		accent: '#6f8f5a',
-		warmth: 0.8,
-		props: ['flowers', 'tea', 'plants'],
+		warmth: 0.6,
+		props: ['flowers', 'tea'],
 		caption: 'Golden hour on the veranda',
-	},
-	{
-		words: [
-			'engineer',
-			'developer',
-			'software',
-			'data',
-			'product',
-			'marketing',
-			'consult',
-			'analyst',
-			'manager',
-			'startup',
-		],
-		scene: 'cafe',
-		time: 'morning',
-		accent: '#3f6e8c',
-		warmth: 0.55,
-		props: ['laptop', 'coffee', 'plants'],
-		caption: 'Morning flat white before stand-up',
 	},
 ];
 
 export function heuristicDirection(input: ProfileInput): SceneDirection {
 	const text = [input.headline, input.about, input.extra].filter(Boolean).join(' ').toLowerCase();
-	let best: Rule = RULES[RULES.length - 1];
+	let best: Rule = RULES[0]; // office
 	let bestScore = 0;
 	for (const rule of RULES) {
 		// match at word starts so "ui" doesn't hit "build" or "law" hit "flaw"
@@ -143,7 +151,7 @@ export function heuristicDirection(input: ProfileInput): SceneDirection {
 		reasoning:
 			bestScore > 0
 				? `Keyword match on the profile text (${bestScore} hit${bestScore === 1 ? '' : 's'}). Add an Anthropic API key for a proper read of the photo and profile.`
-				: 'No strong signals in the text, so this is the default café. Add an Anthropic API key for a proper read of the photo and profile.',
+				: 'No strong signals in the text, so this is the default office. Add an Anthropic API key for a proper read of the photo and profile.',
 		source: 'heuristic',
 	};
 }

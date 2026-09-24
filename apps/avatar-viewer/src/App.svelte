@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Viewer } from './lib/viewer';
+	import { Viewer, type Framing } from './lib/viewer';
 	import { loadImage, loadPersonMesh, toDataUrl } from './lib/avatar';
-	import { analyze, generateAvatar, getConfig, logout, me } from './lib/api';
+	import { analyze, finishPhoto, generateAvatar, getConfig, logout, me } from './lib/api';
 	import { SCENE_LABELS, TIME_LABELS } from './lib/scenes';
 	import {
 		PROP_IDS,
@@ -13,6 +13,7 @@
 		type PropId,
 		type SceneDirection,
 		type ServerConfig,
+		type StillAspect,
 	} from './lib/types';
 
 	let canvasHost: HTMLDivElement;
@@ -30,11 +31,11 @@
 	let heightCm = $state(172);
 
 	let direction = $state<SceneDirection>({
-		scene: 'cafe',
+		scene: 'office',
 		timeOfDay: 'morning',
-		accentColor: '#3f6e8c',
-		warmth: 0.55,
-		props: ['coffee', 'laptop', 'plants'],
+		accentColor: '#2f4a6b',
+		warmth: 0.4,
+		props: ['notebook', 'coffee'],
 		outfit: '',
 		caption: 'Add a photo, then recreate yourself in 3D',
 		reasoning: '',
@@ -48,10 +49,20 @@
 	let referenceUrl = $state<string | null>(null);
 	let modelUrl = $state<string | null>(null);
 	let yaw = $state(0);
+	let framing = $state<Framing>('portrait');
+	let stillAspect = $state<StillAspect>('1:1');
+	let finishing = $state(false);
+	let still = $state<{ url: string; photographic: boolean } | null>(null);
 	let autoRotate = $state(false);
 	let status = $state('');
 	let error = $state('');
 	let panelOpen = $state(true);
+
+	const STAGE_LABELS: Record<AvatarJob['stage'], string> = {
+		reference: 'Photographing you full-length…',
+		views: 'Photographing side and back views…',
+		mesh: 'Building your 3D model…',
+	};
 
 	const PROP_LABELS: Record<PropId, string> = {
 		coffee: 'Coffee',
@@ -140,15 +151,13 @@
 					genProgress = j.progress;
 					genStage = j.stage;
 					if (j.referenceUrl) referenceUrl = j.referenceUrl;
-					status =
-						j.stage === 'reference'
-							? 'Drawing you full-length…'
-							: `Sculpting your 3D model (${j.meshProvider})… ${Math.round(j.progress * 100)}%`;
+					status = STAGE_LABELS[j.stage] + ` ${Math.round(j.progress * 100)}%`;
 				},
 			);
 			status = 'Loading your 3D model…';
 			const person = await loadPersonMesh(job.modelUrl!, heightCm / 100);
-			viewer?.setAvatar(person);
+			viewer?.setAvatar(person, heightCm / 100);
+			setFraming('portrait');
 			modelUrl = job.modelUrl!;
 			if (!direction.reasoning) direction.caption = '';
 			yaw = 0;
@@ -167,14 +176,39 @@
 		redraw();
 	}
 
-	function saveShot() {
-		const url = viewer?.screenshot();
-		if (!url) return;
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = `${(name || 'portrait').replace(/\s+/g, '-').toLowerCase()}-${direction.scene}.png`;
-		a.click();
+	function setFraming(f: Framing) {
+		framing = f;
+		viewer?.setFraming(f);
 	}
+
+	/**
+	 * Renders the current view at LinkedIn size; with fal configured, the render
+	 * then gets a photographic finishing pass that uses the original photo for identity.
+	 */
+	async function createStill() {
+		if (!viewer) return;
+		error = '';
+		const render = viewer.renderStill(stillAspect);
+		if (!config?.photoFinish || !photo || !modelUrl) {
+			still = { url: render, photographic: false };
+			return;
+		}
+		finishing = true;
+		still = null;
+		status = 'Finishing as a photograph…';
+		try {
+			const job = await finishPhoto({ render, photo, aspect: stillAspect });
+			still = { url: job.imageUrl!, photographic: true };
+			status = 'Your LinkedIn photo is ready';
+		} catch (e) {
+			error = `Photographic finish failed, showing the 3D render instead: ${e instanceof Error ? e.message : e}`;
+			still = { url: render, photographic: false };
+		} finally {
+			finishing = false;
+		}
+	}
+
+	const fileStem = () => (name || 'portrait').replace(/\s+/g, '-').toLowerCase();
 
 	async function signOut() {
 		await logout();
@@ -293,13 +327,13 @@
 		{:else}
 			<p class="hint">
 				{#if fullBodyPhoto}Your photo goes straight to 3D reconstruction.
-				{:else}Your headshot is first redrawn as a full-length photo of you, then rebuilt as a
-					textured 3D model. Takes a few minutes.{/if}
+				{:else}Your headshot is re-photographed full-length, in your own clothes, from the front,
+					side and back, then rebuilt as a textured 3D model. Takes a few minutes.{/if}
 			</p>
 			<label>
-				Outfit below the photo
+				Outfit (taken from your photo)
 				<input
-					placeholder="e.g. navy blazer, white shirt, dark chinos, loafers"
+					placeholder="e.g. navy wool blazer, white open-collar shirt, charcoal trousers, brown loafers"
 					bind:value={direction.outfit}
 				/>
 			</label>
@@ -318,8 +352,7 @@
 				onclick={runGenerate}
 				disabled={!photo || generating || (!fullBodyPhoto && !config.avatar.fullBodyFromHeadshot)}
 			>
-				{#if generating}{genStage === 'reference' ? 'Drawing you full-length…' : 'Sculpting in 3D…'}
-					{Math.round(genProgress * 100)}%
+				{#if generating}{STAGE_LABELS[genStage]} {Math.round(genProgress * 100)}%
 				{:else}{modelUrl ? 'Recreate again' : 'Recreate me in 3D'}{/if}
 			</button>
 			{#if !fullBodyPhoto && !config.avatar.fullBodyFromHeadshot}
@@ -331,8 +364,8 @@
 			{#if generating}<div class="bar"><div style="width:{genProgress * 100}%"></div></div>{/if}
 			{#if referenceUrl}
 				<figure class="reference">
-					<img src={referenceUrl} alt="Full-length reference the 3D model is built from" />
-					<figcaption>Reference the 3D model is built from</figcaption>
+					<img src={referenceUrl} alt="You, full-length, as the 3D model sees you" />
+					<figcaption>Full-length photo the 3D model is built from</figcaption>
 				</figure>
 			{/if}
 			{#if modelUrl}
@@ -347,15 +380,41 @@
 						oninput={() => viewer?.setAvatarYaw(yaw)}
 					/>
 				</label>
-				<a
-					class="btn secondary"
-					href={modelUrl}
-					download="{(name || 'me').replace(/\s+/g, '-').toLowerCase()}.glb"
+				<a class="btn secondary" href={modelUrl} download="{fileStem()}.glb"
 					>Download 3D model (.glb)</a
 				>
 			{/if}
 		{/if}
 	</section>
+
+	{#if modelUrl}
+		<section>
+			<h2><span>5</span> LinkedIn photo</h2>
+			<p class="hint">
+				Frame the shot in the viewer, then create the image.
+				{#if config?.photoFinish}The 3D render is finished as a real photograph, using your original
+					photo so the face is yours.{/if}
+			</p>
+			<div class="segmented">
+				<button class:on={stillAspect === '1:1'} onclick={() => (stillAspect = '1:1')}
+					>Profile photo (1:1)</button
+				>
+				<button class:on={stillAspect === '16:9'} onclick={() => (stillAspect = '16:9')}
+					>Post image (16:9)</button
+				>
+			</div>
+			<button class="btn" onclick={createStill} disabled={finishing}>
+				{finishing ? 'Finishing as a photograph…' : 'Create LinkedIn photo'}
+			</button>
+			{#if still}
+				<figure class="reference">
+					<img src={still.url} alt="Your LinkedIn portrait" />
+					<figcaption>{still.photographic ? 'Photographic finish' : '3D render'}</figcaption>
+				</figure>
+				<a class="btn secondary" href={still.url} download="{fileStem()}-linkedin.jpg">Download</a>
+			{/if}
+		</section>
+	{/if}
 
 	{#if error}<p class="error">{error}</p>{/if}
 </aside>
@@ -371,7 +430,12 @@
 	<button class:on={autoRotate} onclick={() => viewer?.setAutoRotate((autoRotate = !autoRotate))}
 		>Orbit</button
 	>
-	<button onclick={saveShot}>Save still</button>
+	{#if modelUrl}
+		<button class:on={framing === 'portrait'} onclick={() => setFraming('portrait')}
+			>Portrait</button
+		>
+		<button class:on={framing === 'scene'} onclick={() => setFraming('scene')}>Full scene</button>
+	{/if}
 </div>
 
 {#if status}<div class="status">{status}</div>{/if}

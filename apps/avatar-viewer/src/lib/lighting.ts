@@ -28,72 +28,82 @@ export interface LightingPreset {
 	envIntensity: number;
 	/** Warm practical lights (pendants, string lights, lamps). */
 	practicalIntensity: number;
+	/** Multiplier on the softbox key/fill/rim around the person. */
+	portraitIntensity: number;
 	exposure: number;
 	fog: THREE.ColorRepresentation;
 	fogDensity: number;
 	bloom: number;
 }
 
+// Tuned for flattering business portraits: the sun is a gentle accent, most
+// of the light comes from the sky (HDRI) and the softboxes, so faces stay soft
+// and shadows diffuse.
 export const LIGHTING: Record<TimeOfDay, LightingPreset> = {
 	morning: {
-		sunElevation: 22,
+		sunElevation: 24,
 		sunAzimuth: 110,
-		sunKelvin: 4800,
-		sunIntensity: 3.2,
-		envIntensity: 0.9,
-		practicalIntensity: 0.4,
+		sunKelvin: 5000,
+		sunIntensity: 1.6,
+		envIntensity: 1.15,
+		practicalIntensity: 0.3,
+		portraitIntensity: 1,
 		exposure: 1.0,
-		fog: '#dfe6ee',
-		fogDensity: 0.012,
-		bloom: 0.15,
+		fog: '#e3e8ee',
+		fogDensity: 0.01,
+		bloom: 0.08,
 	},
 	midday: {
-		sunElevation: 55,
+		sunElevation: 50,
 		sunAzimuth: 160,
-		sunKelvin: 5800,
-		sunIntensity: 4.0,
-		envIntensity: 1.0,
-		practicalIntensity: 0.15,
+		sunKelvin: 5700,
+		sunIntensity: 1.9,
+		envIntensity: 1.2,
+		practicalIntensity: 0.1,
+		portraitIntensity: 1,
 		exposure: 0.95,
 		fog: '#e8eef4',
 		fogDensity: 0.008,
-		bloom: 0.1,
+		bloom: 0.05,
 	},
 	golden: {
-		sunElevation: 8,
+		sunElevation: 10,
 		sunAzimuth: 250,
-		sunKelvin: 2900,
-		sunIntensity: 4.2,
-		envIntensity: 0.8,
-		practicalIntensity: 0.9,
-		exposure: 1.05,
-		fog: '#f0c79a',
-		fogDensity: 0.014,
-		bloom: 0.3,
+		sunKelvin: 3300,
+		sunIntensity: 2.2,
+		envIntensity: 0.95,
+		practicalIntensity: 0.6,
+		portraitIntensity: 0.9,
+		exposure: 1.02,
+		fog: '#efd2b0',
+		fogDensity: 0.012,
+		bloom: 0.15,
 	},
 	dusk: {
-		sunElevation: 1,
+		sunElevation: 2,
 		sunAzimuth: 265,
-		sunKelvin: 2200,
-		sunIntensity: 1.1,
-		envIntensity: 0.55,
-		practicalIntensity: 1.6,
-		exposure: 1.15,
-		fog: '#5b5a78',
-		fogDensity: 0.016,
-		bloom: 0.45,
+		sunKelvin: 2500,
+		sunIntensity: 0.7,
+		envIntensity: 0.7,
+		practicalIntensity: 1.3,
+		portraitIntensity: 0.85,
+		exposure: 1.1,
+		fog: '#6a6882',
+		fogDensity: 0.014,
+		bloom: 0.25,
 	},
 	night: {
 		sunElevation: 35,
 		sunAzimuth: 200,
 		sunKelvin: 8000, // moonlight
-		sunIntensity: 0.25,
-		envIntensity: 0.35,
-		practicalIntensity: 2.4,
-		exposure: 1.25,
-		fog: '#141a2a',
-		fogDensity: 0.02,
-		bloom: 0.6,
+		sunIntensity: 0.2,
+		envIntensity: 0.4,
+		practicalIntensity: 2,
+		portraitIntensity: 0.8,
+		exposure: 1.2,
+		fog: '#1a2030',
+		fogDensity: 0.018,
+		bloom: 0.35,
 	},
 };
 

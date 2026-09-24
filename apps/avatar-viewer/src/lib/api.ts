@@ -1,6 +1,8 @@
 import type {
 	AvatarJob,
 	AvatarRequest,
+	FinishJob,
+	FinishRequest,
 	LinkedInIdentity,
 	ProfileInput,
 	SceneDirection,
@@ -62,5 +64,15 @@ export async function generateAvatar(
 		onProgress(job);
 	}
 	if (job.status === 'failed') throw new Error(job.error ?? 'Avatar generation failed');
+	return job;
+}
+
+export async function finishPhoto(req: FinishRequest): Promise<FinishJob> {
+	let job = await request<FinishJob>('/api/finish', { method: 'POST', body: JSON.stringify(req) });
+	while (job.status === 'running') {
+		await new Promise((r) => setTimeout(r, 3000));
+		job = await request<FinishJob>(`/api/finish/${job.id}`);
+	}
+	if (job.status === 'failed') throw new Error(job.error ?? 'Photographic finish failed');
 	return job;
 }

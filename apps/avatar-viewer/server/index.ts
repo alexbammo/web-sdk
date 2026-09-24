@@ -4,6 +4,8 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyzeProfile, claudeConfigured } from './analyze.js';
 import { avatarCapabilities, fetchAvatarModel, pollAvatarJob, startAvatarJob } from './avatar.js';
+import { falConfigured } from './fal.js';
+import { fetchFinishImage, pollFinish, startFinish } from './finish.js';
 import {
 	authorizeUrl,
 	endSession,
@@ -11,7 +13,7 @@ import {
 	handleCallback,
 	linkedinConfigured,
 } from './linkedin.js';
-import type { AvatarRequest, ProfileInput, ServerConfig } from '../src/lib/types.js';
+import type { AvatarRequest, FinishRequest, ProfileInput, ServerConfig } from '../src/lib/types.js';
 
 try {
 	process.loadEnvFile(fileURLToPath(new URL('../.env', import.meta.url)));
@@ -88,6 +90,7 @@ async function route(req: IncomingMessage, res: ServerResponse) {
 			claude: claudeConfigured(),
 			linkedin: linkedinConfigured(),
 			avatar: avatarCapabilities(),
+			photoFinish: falConfigured(),
 		};
 		return json(res, 200, config);
 	}
@@ -118,6 +121,34 @@ async function route(req: IncomingMessage, res: ServerResponse) {
 			return;
 		}
 		const job = await pollAvatarJob(jobMatch[1]);
+		return job ? json(res, 200, job) : json(res, 404, { error: 'Unknown job' });
+	}
+
+	if (pathname === '/api/finish' && method === 'POST') {
+		const body = await readJson<FinishRequest>(req);
+		const dataUrl = /^data:image\/(jpeg|png|webp);base64,/;
+		if (!dataUrl.test(body.render ?? '') || !dataUrl.test(body.photo ?? '')) {
+			return json(res, 400, { error: 'render and photo must be image data URLs' });
+		}
+		if (body.aspect !== '1:1' && body.aspect !== '16:9') {
+			return json(res, 400, { error: 'Unsupported aspect' });
+		}
+		return json(res, 202, await startFinish(body));
+	}
+
+	const finishMatch = /^\/api\/finish\/([0-9a-f-]{36})(\/image\.jpg)?$/.exec(pathname);
+	if (finishMatch && method === 'GET') {
+		if (finishMatch[2]) {
+			const upstream = await fetchFinishImage(finishMatch[1]);
+			if (!upstream?.ok) return json(res, 404, { error: 'Image not ready' });
+			res.writeHead(200, {
+				'Content-Type': upstream.headers.get('content-type') ?? 'image/jpeg',
+				'Cache-Control': 'private, max-age=3600',
+			});
+			res.end(Buffer.from(await upstream.arrayBuffer()));
+			return;
+		}
+		const job = await pollFinish(finishMatch[1]);
 		return job ? json(res, 200, job) : json(res, 404, { error: 'Unknown job' });
 	}
 
