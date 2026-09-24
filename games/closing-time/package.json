@@ -1,0 +1,23 @@
+{
+  "name": "closing-time",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Closing Time - a 1-4 player co-op haunted supermarket horror game for the browser",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "node server/server.js",
+    "e2e": "node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "n8ao": "^2.0.1",
+    "postprocessing": "^6.39.5",
+    "three": "^0.186.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.1",
+    "vite": "^8.3.0"
+  }
+}

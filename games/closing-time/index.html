@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Closing Time</title>
+		<link rel="stylesheet" href="/src/style.css" />
+	</head>
+	<body>
+		<canvas id="c"></canvas>
+
+		<div id="menu" class="overlay">
+			<div class="panel">
+				<div class="logo">CLOSING<span>TIME</span></div>
+				<div class="tag">St Mercy Superstore · 1–4 player co-op horror</div>
+				<p class="blurb">
+					The store is built over a graveyard. When the lights fail, the only way out is to find everything on the shopping list, bring it
+					to the self-checkout and <b>complete your purchase</b>.
+				</p>
+				<label>Your name <input id="name" maxlength="16" placeholder="Shopper" /></label>
+				<label>Room code <input id="room" maxlength="8" placeholder="MAIN" /></label>
+				<button id="join">Enter the store</button>
+				<div class="keys">
+					<b>WASD</b> move · <b>Shift</b> sprint · <b>Mouse</b> look · <b>E</b> (hold) pick up / scan / revive / open case · <b>Q</b> drop ·
+					<b>F</b> torch · <b>Tab</b> list
+				</div>
+			</div>
+		</div>
+
+		<div id="lobby" class="overlay hidden">
+			<div class="panel">
+				<div class="logo small">CLOSING<span>TIME</span></div>
+				<div>Room <b id="roomcode"></b> · share this link with friends:</div>
+				<input id="share" readonly />
+				<ul id="lobbylist"></ul>
+				<div class="row">
+					<button id="ready">Ready</button>
+					<button id="start" class="ghost">Start now</button>
+				</div>
+				<div class="hint">The run starts when everyone is ready.</div>
+			</div>
+		</div>
+
+		<div id="hud" class="hidden">
+			<div id="phase"></div>
+			<div id="list"></div>
+			<div id="team"></div>
+			<div id="vitals">
+				<div class="bar"><span>HEALTH</span><i id="hpbar"></i></div>
+				<div class="bar"><span>TORCH</span><i id="batbar"></i></div>
+				<div class="bar"><span>STAMINA</span><i id="stbar"></i></div>
+				<div id="carry"></div>
+			</div>
+			<div id="cross"></div>
+			<div id="prompt"></div>
+			<div id="hold"><i></i></div>
+			<div id="subs"></div>
+			<div id="toasts"></div>
+			<div id="downed" class="hidden">YOU ARE DOWN<small>A teammate can revive you - they hold E beside you</small></div>
+			<div id="clickhint" class="hidden">Click to look around</div>
+		</div>
+
+		<div id="end" class="overlay hidden">
+			<div class="panel">
+				<div id="endtitle" class="logo small"></div>
+				<div id="receipt"></div>
+				<div class="hint">Returning to the lobby shortly…</div>
+			</div>
+		</div>
+		<script type="module" src="/src/main.js"></script>
+	</body>
+</html>
